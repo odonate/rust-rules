@@ -1,0 +1,11 @@
+[Please]
+version = 17.8.7
+
+[PluginDefinition]
+name = rust
+
+;; [Plugin "rust"]
+;; RustTool = //third_party/rust:toolchain
+
+[buildconfig]
+rust-toolchain = //third_party/rust:toolchain

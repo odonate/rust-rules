@@ -1,0 +1,234 @@
+"""Build rules for compiling Rust code in Please.
+
+"""
+
+def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=None, visibility=None):
+    """Defines rules to fetch a Rust toolchain.
+
+    Typically you'd set the name of this rule into rustc_toolchain, either in your .plzconfig
+    or using package(). rustc and the stdlib will then be automatically derived from it.
+
+    Args:
+      name (str): Name of the rule.
+      version (str): Version of Rust to download.
+      os (str): Operating system to download for, as the full triple, e.g. 'unknown-linux-gnu', 'pc-windows-msvc', etc.
+                Defaults to the current OS, as best we can.
+      arch (str): Architecture to download for, e.g. 'i686' or 'x86_64'. Defaults to the current one.
+      hashes (list) List of hashes to verify on download.
+      deps (list): Extra dependencies of the rule.
+      visibility (list): Visibility declaration of the rule.
+    """
+    if not os:
+        if CONFIG.OS == 'linux':
+            os = 'unknown-linux-gnu'
+        elif CONFIG.OS == 'darwin':
+            os = 'apple-darwin'
+        else:
+            raise ParseError('Unknown OS %s, you must pass os explicitly to rust_toolchain' % CONFIG.OS)
+    if not arch:
+        if CONFIG.ARCH == 'amd64':
+            arch = 'x86_64'
+        elif CONFIG.ARCH == 'x86':
+            arch = 'i686'
+        else:
+            raise ParseError('Unknown architecture %s, you must pass arch explicitly to rust_toolchain' % CONFIG.ARCH)
+
+    base = '-'.join(['rust', version, arch, os])
+    download_rule = remote_file(
+        name = '_%s#download' % name,
+        url = 'https://static.rust-lang.org/dist/%s.tar.gz' % base,
+        #key = 'https://static.rust-lang.org/rust-key.gpg.ascii',
+        hashes = hashes,
+        deps = deps,
+    )
+    extract_rule = build_rule(
+        name = name,
+        tag = 'extract',
+        srcs = [download_rule],
+        outs = {
+            'rustc_bin': [base + '/rustc/bin/rustc'],
+            'rustc_lib': [base + '/rustc/lib'],
+            'cargo_bin': [base + '/cargo/bin/cargo'],
+            'stdlib': ['%s/rust-std-%s-%s/lib/rustlib/%s-%s/lib' % (base, arch, os, arch, os)],
+        },
+        cmd = 'tar -xzf $SRCS',
+        building_description = 'Extracting...',
+    )
+    # This is something of a hack; the libraries need to stay in place next to the binary, which
+    # must itself be binary so it's executable.
+    # Another option might be to rewrite its rpath, or clever use of LD_LIBRARY_PATH, but this
+    # seems easiest for now.
+    lib_rule = filegroup(
+        name = name,
+        tag = 'lib',
+        srcs = [extract_rule + '|rustc_lib'],
+        binary = True,
+    )
+    filegroup(
+        name = name + '_rustc',
+        srcs = [extract_rule + '|rustc_bin'],
+        visibility = visibility,
+        binary = True,
+        deps = [lib_rule],
+    )
+    filegroup(
+        name = name + '_stdlib',
+        srcs = [extract_rule + '|stdlib'],
+        visibility = visibility,
+    )
+    filegroup(
+        name = name + '_cargo',
+        srcs = [extract_rule + '|cargo_bin'],
+        visibility = visibility,
+    )
+    
+
+def rust_library(name:str, srcs:list, deps=None, visibility=None):
+    """Defines a build rule for a Rust library.
+
+    Args:
+      name: Name of the rule.
+      srcs: Source files for this library.
+      deps: Dependencies of this rule needed for it to compile.
+      visibility: Visibility declaration.
+    """
+    cmd, tools = _rustc_cmds(deps, crate_type='lib', crate_name=name)
+    build_rule(
+        name = name,
+        srcs = srcs,
+        outs = ['lib%s.rlib' % name],
+        cmd = cmd,
+        deps = deps,
+        visibility = visibility,
+        requires = ['rust'],
+        tools = tools,
+    )
+
+
+def rust_binary(name, main, deps=None, visibility=None):
+    """Defines a build rule for a Rust standalone binary.
+
+    Args:
+      name: Name of the rule.
+      main: Source files containing the main() function.
+      deps: Dependencies of this rule needed for it to compile.
+      visibility: Visibility declaration.
+    """
+    cmd, tools = _rustc_cmds(deps)
+    build_rule(
+        name = name,
+        srcs = [main],
+        binary = True,
+        outs = [name],
+        cmd = cmd,
+        deps = deps,
+        visibility = visibility,
+        requires = ['rust'],
+        tools = tools,
+    )
+
+
+def rust_test(name, srcs, deps=None, visibility=None):
+    """Defines a test rule for a Rust library.
+
+    Note that while this correctly runs tests, the Rust test runner has no
+    ability to output in any format we're familiar with. This is a known issue
+    (see https://github.com/rust-lang/rfcs/issues/816) but it isn't resolved
+    yet, so for now we do a straight pass-fail. Rumour has it that plz may gain
+    some ability to parse Rust test logs soonish in which case we'd get slightly
+    more detailed feedback here.
+
+    Args:
+      name: Name of the rule.
+      srcs: Source files for test.
+      deps: Dependencies of this rule needed for it to compile.
+      visibility: Visibility declaration.
+    """
+    cmd, tools = _rustc_cmds(deps, test=True)
+    build_rule(
+        name = name,
+        srcs = srcs,
+        binary = True,
+        test = True,
+        outs = [name],
+        cmd = cmd,
+        deps = deps,
+        visibility = visibility,
+        requires = ['rust'],
+        no_test_output = True,  # see above
+        tools = tools,
+    )
+
+
+def _rustc_cmds(deps:list=[], crate_type=None, crate_name=None, crate_features=None, test=False, externs=None):
+    """Returns the commands to pass to rustc, and tools to use for it."""
+    cmd = ['echo $SRCS && echo $TOOLS_RUSTC && $TOOLS_RUSTC', '$SRCS', '-o', '$OUT']
+    if crate_type:
+        cmd.append('--crate-type=' + crate_type)
+    if crate_name:
+        cmd.append('--crate-name=' + crate_name)
+    if crate_features:
+        cmd.extend([f'--cfg feature=\\"{feature}\\"' for feature in crate_features])
+    if test:
+        cmd.append('--test')
+    if CONFIG.RUST_STDLIB or CONFIG.RUST_TOOLCHAIN:
+        cmd.append('-L $TOOLS_STDLIB -L $TOOLS_STDLIB/../../..')
+    if deps:
+        cmd.extend(['-L $(dir %s)' % dep for dep in deps])
+    # if externs:
+    #     cmd.extend([f'--extern rand_core=third_party/rust/librand_core.rlib'])
+    cmd = ' '.join(cmd)
+    return {
+        'dbg': cmd + ' -g',
+        'opt': cmd + ' -O',
+    }, {
+        'rustc': [(CONFIG.RUST_TOOLCHAIN + '_rustc') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUSTC_TOOL],
+        'stdlib': [(CONFIG.RUST_TOOLCHAIN + '_stdlib') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUST_STDLIB],
+    }
+
+
+def rust_crate_download(name:str, crate:str, version:str, deps:list=[], _tag:str=''):
+    """Downloads a third-party Rust crate.
+
+    This rule is typically used in conjunction with rust_crate(). This rule can be passed to rust_crate() via the 
+    download param which enables multiple rust_crate() rule to compile parts of the whole crate.
+    """
+    
+    url = f'https://crates.io/api/v1/crates/{crate}/{version}/download'
+    out_crate = f'{crate}-{version}.crate'
+    out_dir = f'{crate}-{version}'
+
+    # Commands to handle download, extraction, and preparation
+    cmds = [
+        f'curl -L {url} -o {out_crate}',  # Download the crate
+        f'mkdir -p {out_dir}', # Make the directory for the extraction
+        f'tar -xzf {out_crate} --strip-components=1 -C {out_dir}',  # Extract the crate and flatten it.
+        f'rm -f {out_crate}',  # Clean up the crate/tarball after extraction
+    ]
+
+    labels += [f'rust_crate:{crate}@{version}']
+
+    return build_rule(
+        name=name,
+        tag=_tag,
+        outs=[out_dir],
+        cmd=' && '.join(cmds),
+        deps=deps,
+        test_only=test_only,
+        labels=labels,
+        hashes=hashes,
+        licences=licences,
+        visibility=visibility,
+        building_description=f'Downloading and preparing {crate} crate',
+    )
+
+def rust_crate(name:str, crate:str, version:str='', download:str='', deps:list=[],
+               features:list=[], visibility:list=None, binary:bool=False):
+     """Defines a dependency on a third-party Rust crate.
+
+#     Note that unlike a normal `cargo build`, this does *not* install transitive dependencies."""
+     
+
+CONFIG.setdefault('RUSTC_TOOL', 'rustc')
+CONFIG.setdefault('RUST_STDLIB', None)
+CONFIG.setdefault('RUST_TOOLCHAIN', None)
