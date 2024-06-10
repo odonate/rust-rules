@@ -9,3 +9,6 @@ name = rust
 
 [buildconfig]
 rust-toolchain = //third_party/rust:toolchain
+
+[alias "rustc"]
+cmd = run //third_party/rust:toolchain_rustc -- --crate-type lib --verbose

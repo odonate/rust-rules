@@ -1,0 +1,18 @@
+subinclude("//build_defs:rust")
+
+rust_library(
+    name = "math",
+    root = "src/lib.rs",
+    modules = [
+        "src/add.rs",
+        "src/sub.rs",
+    ],
+)
+
+rust_binary(
+    name = "guess",
+    main = "src/main.rs",
+    deps = [
+        ":math",
+    ],
+)

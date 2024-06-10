@@ -1,5 +1,7 @@
 """Build rules for compiling Rust code in Please.
 
+We do not use Cargo so try and replicate what Cargo does.
+
 """
 
 def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=None, visibility=None):
@@ -81,22 +83,34 @@ def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=
         srcs = [extract_rule + '|cargo_bin'],
         visibility = visibility,
     )
+
+
+def rust_library(
+        name:str, root:str, modules:list=None, deps:list=[], visibility=None
+):
+    """Defines a build rule for a Rust library.
+    
     
 
-def rust_library(name:str, srcs:list, deps=None, visibility=None):
-    """Defines a build rule for a Rust library.
-
     Args:
-      name: Name of the rule.
-      srcs: Source files for this library.
+      name: Name of the crate we're creating.
+      root: The crate root is a source file that the Rust compiler starts from and makes up the root module of the crate.
+      modules: The modules that make up the crate.
       deps: Dependencies of this rule needed for it to compile.
       visibility: Visibility declaration.
     """
+    if modules:
+        filegroup(
+            name=f'{name}_mods',
+            srcs=modules,
+        )
+        deps.append(f':{name}_mods')
+    
     cmd, tools = _rustc_cmds(deps, crate_type='lib', crate_name=name)
     build_rule(
         name = name,
-        srcs = srcs,
-        outs = ['lib%s.rlib' % name],
+        srcs = [root],
+        outs = [f'lib{name}.rlib'],
         cmd = cmd,
         deps = deps,
         visibility = visibility,
@@ -162,7 +176,11 @@ def rust_test(name, srcs, deps=None, visibility=None):
 
 def _rustc_cmds(deps:list=[], crate_type=None, crate_name=None, crate_features=None, test=False, externs=None):
     """Returns the commands to pass to rustc, and tools to use for it."""
-    cmd = ['echo $SRCS && echo $TOOLS_RUSTC && $TOOLS_RUSTC', '$SRCS', '-o', '$OUT']
+    cmd = [
+        'echo $SRCS && echo $TOOLS_RUSTC && echo $OUT &&'
+    ] + [
+        '$TOOLS_RUSTC', '$SRCS', '-o', '$OUT', '--verbose'
+    ]
     if crate_type:
         cmd.append('--crate-type=' + crate_type)
     if crate_name:
@@ -175,8 +193,6 @@ def _rustc_cmds(deps:list=[], crate_type=None, crate_name=None, crate_features=N
         cmd.append('-L $TOOLS_STDLIB -L $TOOLS_STDLIB/../../..')
     if deps:
         cmd.extend(['-L $(dir %s)' % dep for dep in deps])
-    # if externs:
-    #     cmd.extend([f'--extern rand_core=third_party/rust/librand_core.rlib'])
     cmd = ' '.join(cmd)
     return {
         'dbg': cmd + ' -g',
