@@ -119,7 +119,7 @@ def rust_library(
     )
 
 
-def rust_binary(name, main, deps=None, visibility=None):
+def rust_binary(name, main, deps=None, visibility=None, edition='2018'):
     """Defines a build rule for a Rust standalone binary.
 
     Args:
@@ -128,7 +128,7 @@ def rust_binary(name, main, deps=None, visibility=None):
       deps: Dependencies of this rule needed for it to compile.
       visibility: Visibility declaration.
     """
-    cmd, tools = _rustc_cmds(deps)
+    cmd, tools = _rustc_cmds(deps, edition=edition)
     build_rule(
         name = name,
         srcs = [main],
@@ -174,12 +174,14 @@ def rust_test(name, srcs, deps=None, visibility=None):
     )
 
 
-def _rustc_cmds(deps:list=[], crate_type=None, crate_name=None, crate_features=None, test=False, externs=None):
+def _rustc_cmds(
+        deps:list=[],
+        crate_type=None, crate_name=None, crate_features=None,
+        test=False, debug=False, externs=None, edition="2018"):
     """Returns the commands to pass to rustc, and tools to use for it."""
     cmd = [
-        'echo $SRCS && echo $TOOLS_RUSTC && echo $OUT &&'
-    ] + [
-        '$TOOLS_RUSTC', '$SRCS', '-o', '$OUT', '--verbose'
+        'echo $SRCS && echo $OUT &&', 
+        '$TOOLS_RUSTC', '$SRCS', '-o', '$OUT', '--verbose', '--cfg unix',
     ]
     if crate_type:
         cmd.append('--crate-type=' + crate_type)
@@ -187,6 +189,18 @@ def _rustc_cmds(deps:list=[], crate_type=None, crate_name=None, crate_features=N
         cmd.append('--crate-name=' + crate_name)
     if crate_features:
         cmd.extend([f'--cfg feature=\\"{feature}\\"' for feature in crate_features])
+    # if not debug:
+    #     cmd.append('--emit=dep-info,link')
+    cmd.append(f'--edition={edition}')
+    log.warning(externs)
+    log.warning(cmd)
+    if externs:
+        extern_set = {}
+        for extern in externs:
+            if extern not in extern_set:
+                cmd.append(extern)
+                extern_set[extern] = True
+        log.warning(cmd)
     if test:
         cmd.append('--test')
     if CONFIG.RUST_STDLIB or CONFIG.RUST_TOOLCHAIN:
@@ -194,6 +208,7 @@ def _rustc_cmds(deps:list=[], crate_type=None, crate_name=None, crate_features=N
     if deps:
         cmd.extend(['-L $(dir %s)' % dep for dep in deps])
     cmd = ' '.join(cmd)
+    log.warning(cmd)
     return {
         'dbg': cmd + ' -g',
         'opt': cmd + ' -O',
@@ -201,50 +216,94 @@ def _rustc_cmds(deps:list=[], crate_type=None, crate_name=None, crate_features=N
         'rustc': [(CONFIG.RUST_TOOLCHAIN + '_rustc') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUSTC_TOOL],
         'stdlib': [(CONFIG.RUST_TOOLCHAIN + '_stdlib') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUST_STDLIB],
     }
-
-
-def rust_crate_download(name:str, crate:str, version:str, deps:list=[], _tag:str=''):
-    """Downloads a third-party Rust crate.
-
-    This rule is typically used in conjunction with rust_crate(). This rule can be passed to rust_crate() via the 
-    download param which enables multiple rust_crate() rule to compile parts of the whole crate.
-    """
     
+
+def rust_crate(
+        name:str, crate:str, version:str, deps:list=[],
+        binary:bool=False, visibility:list=["PUBLIC"],
+        features:list=[], edition:str='2015',
+):
+    pkg = package_name()
+    # Download the crate.
     url = f'https://crates.io/api/v1/crates/{crate}/{version}/download'
-    out_crate = f'{crate}-{version}.crate'
-    out_dir = f'{crate}-{version}'
-
-    # Commands to handle download, extraction, and preparation
-    cmds = [
-        f'curl -L {url} -o {out_crate}',  # Download the crate
-        f'mkdir -p {out_dir}', # Make the directory for the extraction
-        f'tar -xzf {out_crate} --strip-components=1 -C {out_dir}',  # Extract the crate and flatten it.
-        f'rm -f {out_crate}',  # Clean up the crate/tarball after extraction
-    ]
-
-    labels += [f'rust_crate:{crate}@{version}']
-
-    return build_rule(
-        name=name,
-        tag=_tag,
-        outs=[out_dir],
-        cmd=' && '.join(cmds),
-        deps=deps,
-        test_only=test_only,
-        labels=labels,
-        hashes=hashes,
-        licences=licences,
-        visibility=visibility,
-        building_description=f'Downloading and preparing {crate} crate',
+    remote_file(
+        name=f'{crate}-{version}_download',
+        url=url,
+        out=f'{crate}-{version}_download',
+    )
+    # Extract the tarball .cargo file.
+    genrule(
+        name=f'{crate}-{version}_extraction',
+        srcs=[f':{crate}-{version}_download'],
+        outs=[f'{crate}-{version}'],
+        cmd = "&&".join([
+            'tar -xvzf $SRCS'
+        ]),
+    )
+    # Find the entrypoint.
+    crate_type = 'bin' if binary else 'lib'
+    genrule(
+        name=f'{crate}-{version}_entrypoint',
+        srcs=[f':{crate}-{version}_download'],
+        outs=[f'{crate}-{version}/src/lib.rs'], # TODO: binaries.
+        cmd = "&&".join([
+            'tar -xvzf $SRCS'
+        ]),
+        deps=[f':{crate}-{version}_extraction'],
+    )
+    
+    cmd, tools = _rustc_cmds(
+        deps,
+        crate_type=crate_type, crate_name=name, crate_features=features,
+        edition=edition,
+    )
+    build_rule(
+        name = name,
+        srcs = [f':{crate}-{version}_entrypoint'],
+        outs = [f'lib{crate}-{version}.rlib'], # TODO: binaries.
+        cmd = cmd,
+        deps = deps + [f':{crate}-{version}_extraction'], # TODO: strip deps?
+        visibility = visibility,
+        requires = ['rust'],
+        labels=[
+            f'rust_crate_path:{crate}:{pkg}/lib{crate}-{version}.rlib',
+        ],
+        tools = tools,
+        pre_build=_collect_extern_paths(deps, crate_type, name, features, edition) if deps else None,
     )
 
-def rust_crate(name:str, crate:str, version:str='', download:str='', deps:list=[],
-               features:list=[], visibility:list=None, binary:bool=False):
-     """Defines a dependency on a third-party Rust crate.
 
-#     Note that unlike a normal `cargo build`, this does *not* install transitive dependencies."""
-     
+def _collect_extern_paths(deps, crate_type, crate_name, features, edition):
+    """Returns the pre-build function to apply --extern to the rustc command"""
+    def extern_flags(labels):
+        externs = []
+        for label in labels: # TODO: filter out only the ones we need.
+            flag = label.split(':')
+            log.warning(f'flag: {flag}')
+            crate = flag[0].replace('-', '_')
+            path = flag[1]
+            externs.append(f'--extern {crate}={path}')
+        return externs
+            
+    def collect_extern_paths(name):
+        externs = []
+        for dep in deps:
+            log.debug(f"Getting labels for {dep}")
+            labels = get_labels(dep, 'rust_crate_path:')
+            log.debug(f"Found {labels} labels for {dep}")
+            flags = extern_flags(labels)
+            externs += flags
+        if externs:
+            cmds, _ = _rustc_cmds(deps, crate_type=crate_type, crate_name=name, crate_features=features, externs=externs, edition=edition)
+            for k, v in cmds.items():
+                log.warning(k, v)
+                set_command(name, k, v)
+    return collect_extern_paths
+
+
 
 CONFIG.setdefault('RUSTC_TOOL', 'rustc')
 CONFIG.setdefault('RUST_STDLIB', None)
 CONFIG.setdefault('RUST_TOOLCHAIN', None)
+
+

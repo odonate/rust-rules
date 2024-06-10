@@ -10,7 +10,7 @@ rust_library(
 )
 
 rust_binary(
-    name = "guess",
+    name = "main",
     main = "src/main.rs",
     deps = [
         ":math",
