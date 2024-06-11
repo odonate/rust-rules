@@ -45,8 +45,8 @@ rust_crate(
     name="rand_core",
     crate="rand_core",
     version="0.6.4",
-    # features=["std"],
-    # deps = [":getrandom"],
+    features=["std"],
+    deps = [":getrandom"],
     edition="2018",
 )
 

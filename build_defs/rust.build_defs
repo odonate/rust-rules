@@ -1,3 +1,5 @@
+subinclude("//build_defs:fpm")
+
 """Build rules for compiling Rust code in Please.
 
 We do not use Cargo so try and replicate what Cargo does.
@@ -43,6 +45,7 @@ def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=
         hashes = hashes,
         deps = deps,
     )
+    stdlib_path = '/rust-std-%s-%s/lib/rustlib/%s-%s/lib' % (arch, os, arch, os)
     extract_rule = build_rule(
         name = name,
         tag = 'extract',
@@ -51,7 +54,7 @@ def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=
             'rustc_bin': [base + '/rustc/bin/rustc'],
             'rustc_lib': [base + '/rustc/lib'],
             'cargo_bin': [base + '/cargo/bin/cargo'],
-            'stdlib': ['%s/rust-std-%s-%s/lib/rustlib/%s-%s/lib' % (base, arch, os, arch, os)],
+            'stdlib': [base + stdlib_path],
         },
         cmd = 'tar -xzf $SRCS',
         building_description = 'Extracting...',
@@ -66,23 +69,39 @@ def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=
         srcs = [extract_rule + '|rustc_lib'],
         binary = True,
     )
-    filegroup(
+    rustc_rule = filegroup(
         name = name + '_rustc',
         srcs = [extract_rule + '|rustc_bin'],
         visibility = visibility,
         binary = True,
         deps = [lib_rule],
     )
-    filegroup(
+    stdlib_rule = filegroup(
         name = name + '_stdlib',
         srcs = [extract_rule + '|stdlib'],
         visibility = visibility,
     )
-    filegroup(
+    cargo_rule = filegroup(
         name = name + '_cargo',
         srcs = [extract_rule + '|cargo_bin'],
         visibility = visibility,
+        binary=True,
+        deps = [rustc_rule],
     )
+    fpm_deb(
+        name=f'{name}_deb',
+        package_name = 'rust',
+        dirs = {
+            f'{RUST_ROOT}': [extract_rule],
+            f'{RUST_ROOT}/stdlib': [stdlib_rule],
+        },
+        links = {
+            f"{TOOLCHAIN_BIN}/rustc": f'{RUST_ROOT}/rustc',
+            f"{TOOLCHAIN_BIN}/cargo": f'{RUST_ROOT}/cargo',
+        },
+        version = RUST_VERSION,
+    )
+
 
 
 def rust_library(
@@ -192,15 +211,12 @@ def _rustc_cmds(
     # if not debug:
     #     cmd.append('--emit=dep-info,link')
     cmd.append(f'--edition={edition}')
-    log.warning(externs)
-    log.warning(cmd)
     if externs:
         extern_set = {}
         for extern in externs:
             if extern not in extern_set:
                 cmd.append(extern)
                 extern_set[extern] = True
-        log.warning(cmd)
     if test:
         cmd.append('--test')
     if CONFIG.RUST_STDLIB or CONFIG.RUST_TOOLCHAIN:
@@ -208,7 +224,6 @@ def _rustc_cmds(
     if deps:
         cmd.extend(['-L $(dir %s)' % dep for dep in deps])
     cmd = ' '.join(cmd)
-    log.warning(cmd)
     return {
         'dbg': cmd + ' -g',
         'opt': cmd + ' -O',
@@ -305,5 +320,3 @@ def _collect_extern_paths(deps, crate_type, crate_name, features, edition):
 CONFIG.setdefault('RUSTC_TOOL', 'rustc')
 CONFIG.setdefault('RUST_STDLIB', None)
 CONFIG.setdefault('RUST_TOOLCHAIN', None)
-
-

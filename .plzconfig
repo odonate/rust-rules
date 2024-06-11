@@ -4,6 +4,17 @@ version = 17.8.7
 [PluginDefinition]
 name = rust
 
+[build]
+path = /opt/rust-rules/toolchain/1.0/bin/:/bin:/usr/bin:/usr/local/bin
+timeout = 2000
+
+[parse]
+preloadsubincludes = ///shell//build_defs:shell
+preloadbuilddefs = toolchain/versions.build_defs
+
+[Plugin "shell"]
+Target = //plugins:shell
+
 ;; [Plugin "rust"]
 ;; RustTool = //third_party/rust:toolchain
 
@@ -11,4 +22,7 @@ name = rust
 rust-toolchain = //third_party/rust:toolchain
 
 [alias "rustc"]
-cmd = run //third_party/rust:toolchain_rustc -- --crate-type lib --verbose
+cmd = run //scripts:rustc
+
+[alias "cargo"]
+cmd = run //scripts:cargo
