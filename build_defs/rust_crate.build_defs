@@ -10,7 +10,7 @@ def _rustc_crate_cmds(
         out_dir='target/debug/deps',
         search_path:str|list|dict={ 'dependency': 'target/debug/deps' },
         cap_lints='allow',
-        # crate_features:list=None,
+        features:list=None,
         # deps:list=[],
         # test=False,
         # debug=False,
@@ -37,6 +37,9 @@ def _rustc_crate_cmds(
                   kinds are: asm, dep-info, link, llvm-bc, llvm-ir, metadaat, mir, obj.
         codegen (dict): All of these options are passed to rustc via -C flags, short for codegen. To
                   see a version of this list for your compiler run `plz rustc -- -C help`.
+        features (list): Configures the compilation environment. These flags turn on or off various
+                  `#[cfg]` settings for conditional compilation. For example, `--cfg feature="serde"`
+                   turns on `#[cfg(feature = "serde")]`.
         out_dir (str): The outputted crate will be written to this directory.
         search_path (str|list|dict): Options are passed to rust via -L flags. Adds path to search 
                   for crates and libraries. If a dict, it specifies the search_path in the form 
@@ -77,6 +80,8 @@ def _rustc_crate_cmds(
         # TODO: -C metadata=xxx-hash-xxx
         # TODO: -C extra-filename=-xxx-hash-xxx 
         cmd.extend([f'-C {k}={v}' for k,v in sorted(codegen.items())])
+    if features:
+        cmd.extend([f'--cfg feature=\\"{feature}\\"' for feature in features])
     if out_dir:
         # TODO: use name-metadata instead of just name.
         cmd.append(f'--out-dir {out_dir}')
@@ -90,8 +95,6 @@ def _rustc_crate_cmds(
         cmd.extend([f'-L {k}={v}' for k,v in sorted(search_path.items())])
     if cap_lints:
         cmd.append(f'--cap-lints {cap_lints}')
-    # if crate_features:
-    #     cmd.extend([f'--cfg feature=\\"{feature}\\"' for feature in crate_features])
     if CONFIG.RUST_STDLIB or CONFIG.RUST_TOOLCHAIN:
         cmd.append('-L $TOOLS_STDLIB')
     if build_out:
@@ -108,7 +111,7 @@ def _rustc_crate_cmds(
 
 def rust_crate(
         name:str, crate:str, version:str, deps:list=[],
-        build_script:str=None,
+        build_script:str=None, crate_features:list=None,
         binary:bool=False, visibility:list=["PUBLIC"],
         features:list=[], edition:str='2015',
 ):
@@ -161,6 +164,7 @@ def rust_crate(
         version=version,
         edition=edition,
         binary=binary,
+        features=crate_features,
         src_rule=src_rule,
         build_out=build_out,
         deps=deps,
@@ -169,7 +173,8 @@ def rust_crate(
 
 def _compile_rust_crate(
         name:str, crate:str, version:str, edition:str, binary:bool,
-        src_rule:str, build_out:str, deps:list, visibility:list,
+        features:list, src_rule:str, build_out:str, deps:list,
+        visibility:list,
 ):
     pkg = package_name()
     base = f'{crate}-{version}'
@@ -183,7 +188,7 @@ def _compile_rust_crate(
         err_format='human',
         crate_type=crate_type,
         out_dir=out_dir,
-        # crate_features=features,
+        features=features,
         build_out=build_out,
     )
     return build_rule(

@@ -8,13 +8,6 @@ rust_toolchain(
 )
 
 rust_crate(
-    name="cfg_if",
-    crate="cfg-if",
-    version="1.0.0",
-    edition="2018",
-)
-
-rust_crate(
     name="libc",
     crate="libc",
     version="0.2.155",
@@ -23,10 +16,18 @@ rust_crate(
 )
 
 rust_crate(
-    name="wasi",
-    crate="wasi",
-    version="0.11.0+wasi-snapshot-preview1",
+    name="cfg_if",
+    crate="cfg-if",
+    version="1.0.0",
     edition="2018",
+)
+
+rust_crate(
+    name="ppv_lite86",
+    crate="ppv-lite86",
+    version="0.2.17",
+    edition="2018",
+    crate_features=["simd", "std"]
 )
 
 rust_crate(
@@ -36,7 +37,6 @@ rust_crate(
     deps=[
         ":cfg_if",
         ":libc",
-        ":wasi",
     ],
     features=["std"],
     edition="2018",
@@ -52,12 +52,6 @@ rust_crate(
 )
 
 #### RUST VERSIONS ARE A MESS ####
-# rust_crate(
-#     name="ppv_lite86",
-#     crate="ppv-lite86",
-#     version="0.2.1",
-#     edition="2018",
-# )
 
 # rust_crate(
 #     name="c2_chacha",
