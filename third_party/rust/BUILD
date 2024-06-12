@@ -17,7 +17,8 @@ rust_crate(
 rust_crate(
     name="libc",
     crate="libc",
-    version="0.2.154",
+    version="0.2.155",
+    build_script="build.rs",
     edition="2015",
 )
 

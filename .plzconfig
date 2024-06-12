@@ -23,6 +23,10 @@ rust-toolchain = //third_party/rust:toolchain
 
 [alias "rustc"]
 cmd = run //scripts:rustc
+subcommand = ["--version", "-vV", "--explain"]
 
 [alias "cargo"]
 cmd = run //scripts:cargo
+subcommand = ["build", "test", "run", "clean", "check", "new"]
+flag = ["--release", "--verbose", "--manifest-path"]
+PositionalLabels = true

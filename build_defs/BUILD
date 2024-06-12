@@ -1,6 +1,9 @@
 filegroup(
     name = "rust",
-    srcs = ["rust.build_defs"],
+    srcs = [
+        "rust.build_defs",
+        "rust_crate.build_defs",
+    ],
     visibility = ["PUBLIC"],
 )
 

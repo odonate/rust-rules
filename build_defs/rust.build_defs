@@ -199,24 +199,13 @@ def _rustc_cmds(
         test=False, debug=False, externs=None, edition="2018"):
     """Returns the commands to pass to rustc, and tools to use for it."""
     cmd = [
-        'echo $SRCS && echo $OUT &&', 
         '$TOOLS_RUSTC', '$SRCS', '-o', '$OUT', '--verbose', '--cfg unix',
     ]
     if crate_type:
         cmd.append('--crate-type=' + crate_type)
     if crate_name:
         cmd.append('--crate-name=' + crate_name)
-    if crate_features:
-        cmd.extend([f'--cfg feature=\\"{feature}\\"' for feature in crate_features])
-    # if not debug:
-    #     cmd.append('--emit=dep-info,link')
     cmd.append(f'--edition={edition}')
-    if externs:
-        extern_set = {}
-        for extern in externs:
-            if extern not in extern_set:
-                cmd.append(extern)
-                extern_set[extern] = True
     if test:
         cmd.append('--test')
     if CONFIG.RUST_STDLIB or CONFIG.RUST_TOOLCHAIN:
@@ -231,90 +220,6 @@ def _rustc_cmds(
         'rustc': [(CONFIG.RUST_TOOLCHAIN + '_rustc') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUSTC_TOOL],
         'stdlib': [(CONFIG.RUST_TOOLCHAIN + '_stdlib') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUST_STDLIB],
     }
-    
-
-def rust_crate(
-        name:str, crate:str, version:str, deps:list=[],
-        binary:bool=False, visibility:list=["PUBLIC"],
-        features:list=[], edition:str='2015',
-):
-    pkg = package_name()
-    # Download the crate.
-    url = f'https://crates.io/api/v1/crates/{crate}/{version}/download'
-    remote_file(
-        name=f'{crate}-{version}_download',
-        url=url,
-        out=f'{crate}-{version}_download',
-    )
-    # Extract the tarball .cargo file.
-    genrule(
-        name=f'{crate}-{version}_extraction',
-        srcs=[f':{crate}-{version}_download'],
-        outs=[f'{crate}-{version}'],
-        cmd = "&&".join([
-            'tar -xvzf $SRCS'
-        ]),
-    )
-    # Find the entrypoint.
-    crate_type = 'bin' if binary else 'lib'
-    genrule(
-        name=f'{crate}-{version}_entrypoint',
-        srcs=[f':{crate}-{version}_download'],
-        outs=[f'{crate}-{version}/src/lib.rs'], # TODO: binaries.
-        cmd = "&&".join([
-            'tar -xvzf $SRCS'
-        ]),
-        deps=[f':{crate}-{version}_extraction'],
-    )
-    
-    cmd, tools = _rustc_cmds(
-        deps,
-        crate_type=crate_type, crate_name=name, crate_features=features,
-        edition=edition,
-    )
-    build_rule(
-        name = name,
-        srcs = [f':{crate}-{version}_entrypoint'],
-        outs = [f'lib{crate}-{version}.rlib'], # TODO: binaries.
-        cmd = cmd,
-        deps = deps + [f':{crate}-{version}_extraction'], # TODO: strip deps?
-        visibility = visibility,
-        requires = ['rust'],
-        labels=[
-            f'rust_crate_path:{crate}:{pkg}/lib{crate}-{version}.rlib',
-        ],
-        tools = tools,
-        pre_build=_collect_extern_paths(deps, crate_type, name, features, edition) if deps else None,
-    )
-
-
-def _collect_extern_paths(deps, crate_type, crate_name, features, edition):
-    """Returns the pre-build function to apply --extern to the rustc command"""
-    def extern_flags(labels):
-        externs = []
-        for label in labels: # TODO: filter out only the ones we need.
-            flag = label.split(':')
-            log.warning(f'flag: {flag}')
-            crate = flag[0].replace('-', '_')
-            path = flag[1]
-            externs.append(f'--extern {crate}={path}')
-        return externs
-            
-    def collect_extern_paths(name):
-        externs = []
-        for dep in deps:
-            log.debug(f"Getting labels for {dep}")
-            labels = get_labels(dep, 'rust_crate_path:')
-            log.debug(f"Found {labels} labels for {dep}")
-            flags = extern_flags(labels)
-            externs += flags
-        if externs:
-            cmds, _ = _rustc_cmds(deps, crate_type=crate_type, crate_name=name, crate_features=features, externs=externs, edition=edition)
-            for k, v in cmds.items():
-                log.warning(k, v)
-                set_command(name, k, v)
-    return collect_extern_paths
-
 
 
 CONFIG.setdefault('RUSTC_TOOL', 'rustc')
