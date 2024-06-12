@@ -34,12 +34,12 @@ rust_crate(
     name="getrandom",
     crate="getrandom",
     version="0.2.15",
+    edition="2018",
     deps=[
         ":cfg_if",
         ":libc",
     ],
     features=["std"],
-    edition="2018",
 )
 
 rust_crate(
