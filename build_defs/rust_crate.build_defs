@@ -7,15 +7,12 @@ def _rustc_crate_cmds(
         crate_type:str|list='lib',
         emit:str|list=['dep-info', 'metadata', 'link'],
         codegen:dict={'embed-bitcode': 'no'},
-        out_dir='target/debug/deps',
-        search_path:str|list|dict={ 'dependency': 'target/debug/deps' },
-        cap_lints='allow',
         features:list=None,
+        out_dir='target/debug/deps',
+        search_path:str|list|dict={ 'dependency': 'third_party/rust/target/debug/deps' },
+        deps:list=[],
+        cap_lints='allow',
         externs:list=None,
-        # deps:list=[],
-        # test=False,
-        # debug=False,
-        # externs=None,
         build_out:str=None,
 ):
     """Returns the commands to pass to rustc, and tools to use for it.
@@ -52,8 +49,9 @@ def _rustc_crate_cmds(
         cap_lints (string): Sets the lint cap level, the maximum level for all lints. This feature
                   is used heavily by Cargo; it will pass `--cap-lints allow` when compiling your 
                   dependencies, so that if they have any warnings, they do not pollute the output.
+        build_out (string): The output of any build scripts that were run.
     """
-    cmd = [f'echo $(cat $(location {build_out})) && mkdir -p {out_dir} && echo $TOOLS && $TOOLS_RUSTC']
+    cmd = [f'$TOOLS_RUSTC']
     if crate_name:
         cmd.append('--crate-name ' + crate_name)
     if edition:
@@ -98,6 +96,9 @@ def _rustc_crate_cmds(
         cmd.extend([f'-L {path}' for path in search_path])
     elif isinstance(search_path, dict):
         cmd.extend([f'-L {k}={v}' for k,v in sorted(search_path.items())])
+    cmd.extend([f'-L $(dir {dep})' for dep in deps])
+    cmd.append(f'-L {out_dir}')
+    cmd.append(f'-L /home/jack/rust-rules/plz-out/gen/third_party/rust/target/debug/deps')
     if externs:
         cmd.extend([extern for extern in externs])
     if cap_lints:
@@ -118,9 +119,10 @@ def _rustc_crate_cmds(
 
 def rust_crate(
         name:str, crate:str, version:str, deps:list=None,
-        build_script:str=None, crate_features:list=None,
+        build_script:str=None, features:list=None,
         binary:bool=False, visibility:list=["PUBLIC"],
-        features:list=[], edition:str='2015',
+        edition:str='2015',
+        out_dir='target/debug/deps',
 ):
     base = f'{crate}-{version}'
     # Download the crate.
@@ -161,34 +163,34 @@ def rust_crate(
     
     # Run any required build scripts.
     if build_script:
-        build_out = _collect_build_script_output(base, build_root, edition)
+        build_out = _collect_build_script_output(base, build_root, edition, out_dir)
         extra_deps.append(build_out)
     else:
         build_out = None
-    
+
     return _compile_rust_crate(
         name=name,
         crate=crate,
         version=version,
         edition=edition,
         binary=binary,
-        features=crate_features,
+        features=features,
         src_rule=src_rule,
         build_out=build_out,
         deps=deps,
         extra_deps=extra_deps,
         visibility=visibility,
+        out_dir=out_dir,
     )
 
 def _compile_rust_crate(
         name:str, crate:str, version:str, edition:str, binary:bool,
         features:list, src_rule:str, build_out:str, deps:list,
-        extra_deps:list, visibility:list,
+        extra_deps:list, visibility:list, out_dir:str,
 ):
     pkg = package_name()
     base = f'{crate}-{version}'
     crate_type = 'bin' if binary else 'lib'
-    out_dir = 'target/debug/deps'
     cmd, tools = _rustc_crate_cmds(
         name=base,
         crate_name=name,
@@ -199,6 +201,7 @@ def _compile_rust_crate(
         out_dir=out_dir,
         features=features,
         build_out=build_out,
+        deps=deps,
     )
     return build_rule(
         name = name,
@@ -217,7 +220,6 @@ def _compile_rust_crate(
             f'rust_md_path:{crate}:{pkg}/{out_dir}/lib{name}.rmeta',
         ],
         tools = tools,
-        #pre_build=_pre_build_fn(name, build_exec),
         pre_build=_collect_extern_paths(
             name=name,
             base=base,
@@ -232,12 +234,11 @@ def _compile_rust_crate(
     )
     
 def _compile_build_script(
-        name:str, root:str, edition:str,
+        name:str, root:str, edition:str, out_dir:str,
 ):
     """Compiles the build script before execution"""
     
     crate_name = f'{name}_build_script'.replace('-', '_').replace('.', '_')
-    out_dir = 'target/debug/build'
     cmd, tools = _rustc_crate_cmds(
         name=name,
         crate_name=crate_name,
@@ -263,12 +264,11 @@ def _compile_build_script(
 
 
 def _run_build_script(
-        name:str, root:str, edition:str,
+        name:str, root:str, edition:str, out_dir:str,
 ):
     """Run compiled build script before building package."""
     output_name = name.replace('-', '_').replace('.', '_')
-    out_dir = 'target/debug/build'
-    compilation, tools = _compile_build_script(name, root, edition)
+    compilation, tools = _compile_build_script(name, root, edition, out_dir)
     return build_rule(
         name=name,
         tag = 'run_build_script',
@@ -289,11 +289,10 @@ def _run_build_script(
 
 
 def _collect_build_script_output(
-        name:str, root:str, edition:str,
+        name:str, root:str, edition:str, out_dir:str,
 ):
-    build_exec = _run_build_script(name, root, edition)
+    build_exec = _run_build_script(name, root, edition, out_dir)
     output_name = name.replace('-', '_').replace('.', '_')
-    out_dir = 'target/debug/build'
     cmd = """
     output=""
     while IFS= read -r line; do
@@ -325,14 +324,15 @@ def _collect_extern_paths(
         build_out:str, deps:list,
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
-    def extern_flags(labels):
+    def extern_flags(dep, labels):
         externs = []
         for label in labels: # TODO: filter out only the ones we need.
             flag = label.split(':')
-            log.warning(f'flag: {flag}')
             crate = flag[0].replace('-', '_')
             path = flag[1]
-            externs.append(f'--extern {crate}={path}')
+            if crate == dep[1:]:
+                externs.append(f'--extern {crate}={path}')
+        log.debug(f"Matched {externs} for {dep}")
         return externs
             
     def collect_extern_paths(name):
@@ -341,8 +341,7 @@ def _collect_extern_paths(
             log.debug(f"Getting labels for {dep}")
             labels = get_labels(dep, 'rust_md_path:')
             log.debug(f"Found {labels} labels for {dep}")
-            flags = extern_flags(labels)
-            externs += flags
+            externs += extern_flags(dep, labels)
         if externs:
             cmds, _ = _rustc_crate_cmds(
                 name=base,
@@ -355,18 +354,9 @@ def _collect_extern_paths(
                 features=features,
                 build_out=build_out,
                 externs=externs,
+                deps=deps,
             )
             for k, v in cmds.items():
                 log.warning(k, v)
                 set_command(name, k, v)
     return collect_extern_paths
-
-
-def _pre_build_fn(name, build_exec):
-    
-    def pre_build_fn(name):
-        if not build_exec:
-            return
-        output = _collect_build_script_output(name, build_exec)
-
-    return pre_build_fn

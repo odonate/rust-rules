@@ -1,0 +1,103 @@
+subinclude("//build_defs:fpm")
+
+"""Build rules for compiling Rust code in Please.
+
+We do not use Cargo so try and replicate what Cargo does.
+
+"""
+
+def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=None, visibility=None):
+    """Defines rules to fetch a Rust toolchain.
+
+    Typically you'd set the name of this rule into rustc_toolchain, either in your .plzconfig
+    or using package(). rustc and the stdlib will then be automatically derived from it.
+
+    Args:
+      name (str): Name of the rule.
+      version (str): Version of Rust to download.
+      os (str): Operating system to download for, as the full triple, e.g. 'unknown-linux-gnu', 'pc-windows-msvc', etc.
+                Defaults to the current OS, as best we can.
+      arch (str): Architecture to download for, e.g. 'i686' or 'x86_64'. Defaults to the current one.
+      hashes (list) List of hashes to verify on download.
+      deps (list): Extra dependencies of the rule.
+      visibility (list): Visibility declaration of the rule.
+    """
+    if not os:
+        if CONFIG.OS == 'linux':
+            os = 'unknown-linux-gnu'
+        elif CONFIG.OS == 'darwin':
+            os = 'apple-darwin'
+        else:
+            raise ParseError('Unknown OS %s, you must pass os explicitly to rust_toolchain' % CONFIG.OS)
+    if not arch:
+        if CONFIG.ARCH == 'amd64':
+            arch = 'x86_64'
+        elif CONFIG.ARCH == 'x86':
+            arch = 'i686'
+        else:
+            raise ParseError('Unknown architecture %s, you must pass arch explicitly to rust_toolchain' % CONFIG.ARCH)
+
+    base = '-'.join(['rust', version, arch, os])
+    download_rule = remote_file(
+        name = '_%s#download' % name,
+        url = 'https://static.rust-lang.org/dist/%s.tar.gz' % base,
+        #key = 'https://static.rust-lang.org/rust-key.gpg.ascii',
+        hashes = hashes,
+        deps = deps,
+    )
+    stdlib_path = '/rust-std-%s-%s/lib/rustlib/%s-%s/lib' % (arch, os, arch, os)
+    extract_rule = build_rule(
+        name = name,
+        tag = 'extract',
+        srcs = [download_rule],
+        outs = {
+            'rustc_bin': [base + '/rustc/bin/rustc'],
+            'rustc_lib': [base + '/rustc/lib'],
+            'cargo_bin': [base + '/cargo/bin/cargo'],
+            'stdlib': [base + stdlib_path],
+        },
+        cmd = 'tar -xzf $SRCS',
+        building_description = 'Extracting...',
+    )
+    # This is something of a hack; the libraries need to stay in place next to the binary, which
+    # must itself be binary so it's executable.
+    # Another option might be to rewrite its rpath, or clever use of LD_LIBRARY_PATH, but this
+    # seems easiest for now.
+    lib_rule = filegroup(
+        name = name,
+        tag = 'lib',
+        srcs = [extract_rule + '|rustc_lib'],
+        binary = True,
+    )
+    rustc_rule = filegroup(
+        name = name + '_rustc',
+        srcs = [extract_rule + '|rustc_bin'],
+        visibility = visibility,
+        binary = True,
+        deps = [lib_rule],
+    )
+    stdlib_rule = filegroup(
+        name = name + '_stdlib',
+        srcs = [extract_rule + '|stdlib'],
+        visibility = visibility,
+    )
+    cargo_rule = filegroup(
+        name = name + '_cargo',
+        srcs = [extract_rule + '|cargo_bin'],
+        visibility = visibility,
+        binary=True,
+        deps = [rustc_rule],
+    )
+    fpm_deb(
+        name=f'{name}_deb',
+        package_name = 'rust',
+        dirs = {
+            f'{RUST_ROOT}': [extract_rule],
+            f'{RUST_ROOT}/stdlib': [stdlib_rule],
+        },
+        links = {
+            f"{TOOLCHAIN_BIN}/rustc": f'{RUST_ROOT}/rustc',
+            f"{TOOLCHAIN_BIN}/cargo": f'{RUST_ROOT}/cargo',
+        },
+        version = RUST_VERSION,
+    )

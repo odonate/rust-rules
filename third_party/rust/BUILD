@@ -27,7 +27,7 @@ rust_crate(
     crate="ppv-lite86",
     version="0.2.17",
     edition="2018",
-    crate_features=["simd", "std"]
+    features=["simd", "std"]
 )
 
 rust_crate(
@@ -46,55 +46,32 @@ rust_crate(
     name="rand_core",
     crate="rand_core",
     version="0.6.4",
-    features=["std"],
-    deps = [":getrandom"],
     edition="2018",
+    features=["alloc", "getrandom", "std"],
+    deps = [":getrandom"],
 )
 
-#### RUST VERSIONS ARE A MESS ####
+rust_crate(
+    name="rand_chacha",
+    crate="rand_chacha",
+    version="0.3.1",
+    edition="2018",
+    deps=[
+        ":ppv_lite86",
+        ":rand_core",
+    ],
+    features=["std"],
+)
 
-# rust_crate(
-#     name="c2_chacha",
-#     crate="c2-chacha",
-#     version="0.2.2",
-#     deps = [
-#         ":ppv_lite86",
-#     ],
-#     features=["simd"],
-#     edition="2015",
-# )
-
-# rust_crate(
-#     name="rand_chacha",
-#     crate="rand_chacha",
-#     version="0.2.1",
-#     deps=[
-#         ":c2_chacha",
-#         ":rand_core",
-#     ],
-#     features=["std"],
-#     edition="2018",
-# )
-
-# rust_crate(
-#     name="rand_hc",
-#     crate="rand_hc",
-#     version="0.2.0",
-#     deps=[
-#         ":rand_core",
-#     ],
-#     features=["std"],
-#     edition="2018",
-# )
-
-# rust_crate(
-#     name="rand",
-#     crate="rand",
-#     version="0.7.3",
-#     deps=[
-#         ":rand_chacha",
-#         ":rand_core",
-#         ":rand_hc",
-#     ],
-#     edition="2018",
-# )
+rust_crate(
+    name="rand",
+    crate="rand",
+    version="0.8.5",
+    edition="2018",
+    features=["alloc", "default", "getrandom", "libc", "rand_chacha", "std", "std_rng"],
+    deps=[
+        ":libc",
+        ":rand_chacha",
+        ":rand_core",
+    ],
+)

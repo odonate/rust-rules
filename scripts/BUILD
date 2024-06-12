@@ -1,6 +1,7 @@
 sh_binary(
     name = "rustc",
     main = "rustc.sh",
+    visibility=["PUBLIC"],
 )
 
 sh_binary(
