@@ -104,7 +104,7 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
 
 
 def rust_library(
-        name:str, root:str, modules:list=None, deps:list=[], visibility=None
+        name:str, root:str, modules:list=None, deps:list=[], visibility=None, edition:str="2018",
 ):
     """Defines a build rule for a Rust library.
 
