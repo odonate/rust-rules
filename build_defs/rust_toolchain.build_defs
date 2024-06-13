@@ -107,16 +107,3 @@ echo $REPO_ROOT"""
         cmd = f'{target_cmd} > $OUTS',
         visibility = visibility,
     )
-    # fpm_deb(
-    #     name=f'{name}_deb',
-    #     package_name = 'rust',
-    #     dirs = {
-    #         f'{RUST_ROOT}': [extract_rule],
-    #         f'{RUST_ROOT}/stdlib': [stdlib_rule],
-    #     },
-    #     links = {
-    #         f"{TOOLCHAIN_BIN}/rustc": f'{RUST_ROOT}/rustc',
-    #         f"{TOOLCHAIN_BIN}/cargo": f'{RUST_ROOT}/cargo',
-    #     },
-    #     version = RUST_VERSION,
-    # )

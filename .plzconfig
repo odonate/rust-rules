@@ -12,7 +12,6 @@ TargetDir = //third_party/rust:toolchain_target
 
 [Parse]
 preloadsubincludes = ///shell//build_defs:shell
-preloadbuilddefs = toolchain/versions.build_defs
 preloadbuilddefs = build_defs/rust_toolchain.build_defs
 preloadbuilddefs = build_defs/rust.build_defs
 preloadbuilddefs = build_defs/rust_crate.build_defs
@@ -41,11 +40,13 @@ Inherit = true
 Optional = true
 
 [alias "rustc"]
-cmd = run //scripts:rustc
-subcommand = ["--version", "-vV", "--explain"]
+Desc = Runs the rustc binary and sets required env vars.
+Cmd = run //scripts:rustc
+Flag = ["--version", "-vV", "--explain"]
 
 [alias "cargo"]
-cmd = run //scripts:cargo
-subcommand = ["build", "test", "run", "clean", "check", "new"]
-flag = ["--release", "--verbose", "--manifest-path"]
+Desc = Runs the cargo binary and sets required env vars.
+Cmd = run //scripts:cargo
+Subcommand = ["build", "test", "run", "clean", "check", "new"]
+Flag = ["--release", "--verbose", "--manifest-path"]
 PositionalLabels = true
