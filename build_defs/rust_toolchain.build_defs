@@ -1,5 +1,3 @@
-subinclude("//build_defs:fpm")
-
 """Build rules for compiling Rust code in Please.
 
 We do not use Cargo so try and replicate what Cargo does.
@@ -88,11 +86,24 @@ def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=
         binary=True,
         deps = [rustc_rule],
     )
+    target_cmd = """
+find_repo_root() {
+    local dir="$PWD"
+    while [[ "$dir" != "/" ]]; do
+        if [[ -f "$dir/.plzconfig" ]]; then
+            echo "$dir"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    return 1
+}
+REPO_ROOT=$(find_repo_root)
+echo $REPO_ROOT"""
     target_rule = genrule(
         name = name + '_target',
-        srcs = ['//scripts:target'],
         outs = [name + '_target'],
-        cmd = '$(exe //scripts:target) > $OUTS',
+        cmd = f'{target_cmd} > $OUTS',
         visibility = visibility,
     )
     # fpm_deb(

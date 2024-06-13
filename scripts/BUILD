@@ -9,9 +9,3 @@ sh_binary(
     main = "cargo.sh",
     visibility=["PUBLIC"],
 )
-
-sh_binary(
-    name = "target",
-    main = "target.sh",
-    visibility=["PUBLIC"],
-)

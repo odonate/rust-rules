@@ -44,7 +44,9 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
                   added to the extern prelude, similar to specifying `extern crate` within the root
                   module.
     """
-    cmd = [ '$TOOLS_RUSTC', '$SRCS' ]
+    cmd = [
+        '$TOOLS_RUSTC', '$SRCS'
+    ]
     if crate_name:
         cmd.append('--crate-name=' + crate_name)
     if edition:

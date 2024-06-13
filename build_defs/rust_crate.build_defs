@@ -51,7 +51,10 @@ def _rustc_crate_cmds(
                   dependencies, so that if they have any warnings, they do not pollute the output.
         build_out (string): The output of any build scripts that were run.
     """
-    cmd = [f'$TOOLS_RUSTC']
+    cmd = [
+        'echo $(cat $TOOLS_TARGET) && ',
+        f'$TOOLS_RUSTC',
+    ]
     if crate_name:
         cmd.append('--crate-name ' + crate_name)
     if edition:
