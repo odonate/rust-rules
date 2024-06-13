@@ -119,3 +119,16 @@ Rust Rules is based heavily on Cargo in its invocation of the `rustc` compiler. 
 
 ## Contributing
 Contributions are welcome! Please open or submit a pull request with your changes. Ensure that your code follows the existing style and includes tests where applicable.
+
+### Extra Features for Contribution
+Here are some extra features that would be valuable additions to this project:
+
+- **Additional Crate Types**: The `rust_crate` rule currently only supports `.rlib`. Adding support for other crate types, particularly `.bin`, would be useful. Other types to support: staticlib, dylib, cdylib, proc-macro.
+
+- **Improved Linking**: Currently, there is a hacky method for getting the dependency directory for linking crates with the -L flag. A cleaner solution would enhance the build process.
+
+- **Codegen Flags**: Implementing support for the codegen `-C metadata` and `-C extra-filename` flags would better align with how Cargo fingerprints external crates and dependencies.
+
+- **Build Script Outputs**: Currently, only `cargo:rustc-cfg:` is supported in build scripts. Adding support for other outputs like `cargo:rustc-rerun-if-xxx`, `cargo:rustc-link-xxx`, and `cargo:rustc-env` would be beneficial. Additionally, parsing the `Cargo.toml` to check if any values should be overridden would provide more comprehensive functionality.
+
+- **Target (OS and Architecture) Compatibility**: This project has primarily been tested on unknown-linux-gnu x86_64 architecture. It would be nice to test and support other targets to ensure cross-platform compatibility.
