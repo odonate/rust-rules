@@ -23,11 +23,8 @@ rust_toolchain(
 )
 ```
 
-Then add the toolchain and plugin config to `.plzconfig`:
-```
-[BuildConfig]
-rust-toolchain = //third_party/rust:toolchain
-
+Then add the plugin config to `.plzconfig`:
+```ini
 [Plugin "rust"]
 Target = //plugins:rust
 ```
@@ -112,7 +109,26 @@ rust_binary(
 ```
 
 ## Configuration
-Configurability is a WIP.
+Plugins are configured through the Plugin section like so:
+```ini
+[Plugin "rust"]
+SomeConfig = some-value
+```
+The available configuration options are:
+
+### Rustc
+The path to the `rustc` compiler to use. Defaults to the toolchain's rustc.
+```ini
+[Plugin "rust"]
+Rustc = //third_party/rust:toolchain_rustc
+```
+
+### StdLib
+The path to the `stdlib` to be linked by the compiler. Defaults to the toolchain's stdlib.
+```ini
+[Plugin "rust"]
+StdLib = //third_party/rust:toolchain_stdlib
+```
 
 ## General notes
 Rust Rules is based heavily on Cargo in its invocation of the `rustc` compiler. Care should be taken when defining third-party crates to ensure the correct depencies and their versions are supplied, required conditional compilation features are set, and correct Rust editions are used. This information can be found in the `Cargo.toml` file of the third-party crate. Unfortunately, at present, Rust Rules does not parse the `Cargo.toml` file to infer this information, so it must be supplied manually.
