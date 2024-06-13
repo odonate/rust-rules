@@ -16,3 +16,12 @@ rust_binary(
         ":math",
     ],
 )
+
+rust_test(
+    name = 'test',
+    root = 'src/lib.rs',
+    modules = [
+        "src/add.rs",
+        "src/sub.rs",
+    ],  
+)

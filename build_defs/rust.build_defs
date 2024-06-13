@@ -107,9 +107,7 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
     }
 
 
-def rust_library(
-        name:str, root:str, modules:list=None, deps:list=[], visibility=None, edition:str="2018",
-):
+def rust_library(name:str, root:str, modules:list=None, deps:list=[], visibility=None, edition:str="2018"):
     """Defines a build rule for a Rust library.
 
     Args:
@@ -183,7 +181,7 @@ def rust_binary(name, main, deps=None, visibility=None, edition='2018'):
     )
 
 
-def rust_test(name, srcs, deps=None, visibility=None):
+def rust_test(name:str, root:str, modules:list=None, deps:list=[], visibility=None, edition:str="2018"):
     """Defines a test rule for a Rust library.
 
     Note that while this correctly runs tests, the Rust test runner has no
@@ -199,31 +197,50 @@ def rust_test(name, srcs, deps=None, visibility=None):
       deps: Dependencies of this rule needed for it to compile.
       visibility: Visibility declaration.
     """
-    cmd, tools = _rustc_cmds(deps, test=True)
+    if modules:
+        filegroup(
+            name=f'{name}_mods',
+            srcs=modules,
+        )
+        deps.append(f':{name}_mods')
+    
+    cmd, tools = _rustc_cmds(
+        name=name,
+        crate_name=f'{name}_test',
+        edition=edition,
+        crate_type='bin',
+        test=True,
+    )
     build_rule(
         name = name,
-        srcs = srcs,
+        srcs = [root],
         binary = True,
         test = True,
-        outs = [name],
+        no_test_output = True, # see above
+        outs = [f'{name}_test'],
         cmd = cmd,
         deps = deps,
         visibility = visibility,
         requires = ['rust'],
-        no_test_output = True,  # see above
         tools = tools,
+        pre_build=_collect_extern_paths(
+            name=name,
+            edition=edition,
+            crate_type='bin',
+            deps=deps,
+            test=True,
+        ) if deps else None,
     )
 
 
 def _collect_extern_paths(
-        name:str, edition:str, crate_type:str, deps:list,
+        name:str, edition:str, crate_type:str, deps:list, test:bool=False,
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
     def extern_flags(labels):
         externs = []
         for label in labels: # TODO: filter out only the ones we need.
             flag = label.split(':')
-            log.warning(f'flag: {flag}')
             crate = flag[0].replace('-', '_')
             path = flag[1]
             externs.append(f'--extern {crate}={path}')
@@ -232,23 +249,21 @@ def _collect_extern_paths(
     def collect_extern_paths(name):
         externs = []
         for dep in deps:
-            log.debug(f"Getting labels for {dep}")
             labels = get_labels(dep, 'rust_crate_path:')
-            log.debug(f"Found {labels} labels for {dep}")
             flags = extern_flags(labels)
             externs += flags
         if externs:
             cmds, _ = _rustc_cmds(
                 name=name,
-                crate_name=name,
+                crate_name=name if not test else f'{name}_test',
                 edition=edition,
                 err_format='human',
                 crate_type=crate_type,
                 #out_dir=out_dir,
                 externs=externs,
+                test=test,
             )
             for k, v in cmds.items():
-                log.warning(k, v)
                 set_command(name, k, v)
     return collect_extern_paths
 
