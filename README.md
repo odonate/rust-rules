@@ -103,7 +103,7 @@ subinclude("///rust//build_defs:rust")
 
 rust_binary(
     name = "bin",
-    root = "src/main.rs",
+    main = "src/main.rs",
     deps = [
         ":lib",
         "//third_party/rust:<rust_crate_name>",
