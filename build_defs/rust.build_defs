@@ -11,9 +11,7 @@ def _rustc_cmds(
         },
         features:list=None,
         out_dir='target/debug/deps',
-        search_path:str|list|dict={
-            'dependency': 'third_party/rust/target/debug/deps',
-        },
+        search_path:str|list|dict=None,
         externs:list=None,
         test:bool=False,
 ):
@@ -46,9 +44,7 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
                   added to the extern prelude, similar to specifying `extern crate` within the root
                   module.
     """
-    cmd = [
-        '$TOOLS_RUSTC', '$SRCS',
-    ]
+    cmd = [ '$TOOLS_RUSTC', '$SRCS' ]
     if crate_name:
         cmd.append('--crate-name=' + crate_name)
     if edition:
@@ -89,7 +85,7 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
         cmd.extend([f'-L {path}' for path in search_path])
     elif isinstance(search_path, dict):
         cmd.extend([f'-L {k}={v}' for k,v in sorted(search_path.items())])
-    cmd.append(f'-L /home/jack/rust-rules/plz-out/gen/third_party/rust/target/debug/deps')
+    cmd.append(f'-L $(cat $TOOLS_TARGET)/plz-out/gen/third_party/rust/{out_dir}')
     if externs:
         cmd.extend([extern for extern in externs])
     if CONFIG.RUST_STDLIB or CONFIG.RUST_TOOLCHAIN:
@@ -103,6 +99,7 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
     }, {
         'rustc': [(CONFIG.RUST_TOOLCHAIN + '_rustc') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUSTC_TOOL],
         'stdlib': [(CONFIG.RUST_TOOLCHAIN + '_stdlib') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUST_STDLIB],
+        'target': [(CONFIG.RUST_TOOLCHAIN + '_target') if CONFIG.RUST_TOOLCHAIN else CONFIG.RUST_TARGET_DIR],
     }
 
 
@@ -255,3 +252,4 @@ def _collect_extern_paths(
 CONFIG.setdefault('RUSTC_TOOL', 'rustc')
 CONFIG.setdefault('RUST_STDLIB', None)
 CONFIG.setdefault('RUST_TOOLCHAIN', None)
+CONFIG.setdefault('RUST_TARGET_DIR', None)

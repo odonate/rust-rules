@@ -88,6 +88,13 @@ def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=
         binary=True,
         deps = [rustc_rule],
     )
+    target_rule = genrule(
+        name = name + '_target',
+        srcs = ['//scripts:target'],
+        outs = [name + '_target'],
+        cmd = '$(exe //scripts:target) > $OUTS',
+        visibility = visibility,
+    )
     fpm_deb(
         name=f'{name}_deb',
         package_name = 'rust',
