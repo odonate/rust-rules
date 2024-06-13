@@ -27,7 +27,7 @@ def _rustc_crate_cmds(
                   features. Ensures crate is compiled with appropriate features.
         src_path (str): The path to script being compiled. Specifies a path to append to the $SRCS of
                   the compilation rule using these commands.
-        err_format (str): Controles the format of error messages. Messages are printed to stderr. The
+        err_format (str): Controls the format of error messages. Messages are printed to stderr. The
                   valid options are: human, json, short.
         crate_type (str|list): Instructs rustc on which crate types to build. The valid crate types
                   are: lib (defaults to rlib), rlib, staticlib, dylib, cdylib, bin, proc-macro.
@@ -328,21 +328,18 @@ def _collect_extern_paths(
     """Returns the pre-build function to apply --extern to the rustc command"""
     def extern_flags(dep, labels):
         externs = []
-        for label in labels: # TODO: filter out only the ones we need.
+        for label in labels:
             flag = label.split(':')
             crate = flag[0].replace('-', '_')
             path = flag[1]
             if crate == dep[1:]:
                 externs.append(f'--extern {crate}={path}')
-        log.debug(f"Matched {externs} for {dep}")
         return externs
             
     def collect_extern_paths(name):
         externs = []
         for dep in deps:
-            log.debug(f"Getting labels for {dep}")
             labels = get_labels(dep, 'rust_md_path:')
-            log.debug(f"Found {labels} labels for {dep}")
             externs += extern_flags(dep, labels)
         if externs:
             cmds, _ = _rustc_crate_cmds(
@@ -359,6 +356,5 @@ def _collect_extern_paths(
                 deps=deps,
             )
             for k, v in cmds.items():
-                log.warning(k, v)
                 set_command(name, k, v)
     return collect_extern_paths

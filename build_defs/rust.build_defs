@@ -16,7 +16,8 @@ def _rustc_cmds(
         test:bool=False,
 ):
     """Returns the commands to pass to rustc, and tools to use for it.
-We replicate the way Cargo invokes the rustc compiler as close as possible.
+
+    We replicate the way Cargo invokes the rustc compiler as close as possible.
 
     Args:
         name (str): Name of the rule. Required.
@@ -24,7 +25,7 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
         edition (str): Edition of rust to use for this crate specified in the crate's Cargo.toml.
                   Rust has different editions (2015, 2018, 2021) that represent sets of language 
                   features. Ensures crate is compiled with appropriate features.
-        err_format (str): Controles the format of error messages. Messages are printed to stderr. The
+        err_format (str): Controls the format of error messages. Messages are printed to stderr. The
                   valid options are: human, json, short.
         crate_type (str|list): Instructs rustc on which crate types to build. The valid crate types
                   are: lib (defaults to rlib), rlib, staticlib, dylib, cdylib, bin, proc-macro.
@@ -43,6 +44,8 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
                   and location for an external crate of a direct dependency. The given crate name is
                   added to the extern prelude, similar to specifying `extern crate` within the root
                   module.
+        test (bool): Build a test harness. When compiling this crate, `rustc` will ignore your `main`
+                  function and instead produce a test harness.
     """
     cmd = [
         '$TOOLS_RUSTC', '$SRCS'
@@ -107,15 +110,19 @@ We replicate the way Cargo invokes the rustc compiler as close as possible.
     }
 
 
-def rust_library(name:str, root:str, modules:list=None, deps:list=[], visibility=None, edition:str="2018"):
+def rust_library(name:str, root:str, modules:list=None, deps:list=[], edition:str="2018", visibility:list=None):
     """Defines a build rule for a Rust library.
 
     Args:
-      name: Name of the crate we're creating.
-      root: The crate root is a source file that the Rust compiler starts from and makes up the root module of the crate.
-      modules: The modules that make up the crate.
-      deps: Dependencies of this rule needed for it to compile.
-      visibility: Visibility declaration.
+        name (name): Name of the crate we're creating.
+        root (str): Source file that the `rustc` compiler starts from and makes up the root module
+                  of the crate. Typically, `src/lib.rs`.
+        modules (list): Local modules that make up the crate.
+        deps (lists): Third-party dependencies of this crate.
+        edition (str): Edition of rust to use for this crate. Rust has different editions (2015,
+                  2018, 2021) that represent sets of language features. Ensures crate is compiled
+                  with appropriate features.
+        visibility (list): Visibility declaration.
     """
     if modules:
         filegroup(
@@ -147,14 +154,18 @@ def rust_library(name:str, root:str, modules:list=None, deps:list=[], visibility
     )
 
 
-def rust_binary(name, main, deps=None, visibility=None, edition='2018'):
+def rust_binary(name:str, main:str, deps:list=None, edition:str='2018', visibility:list=None):
     """Defines a build rule for a Rust standalone binary.
 
     Args:
-      name: Name of the rule.
-      main: Source files containing the main() function.
-      deps: Dependencies of this rule needed for it to compile.
-      visibility: Visibility declaration.
+        name (str): Name of the binary.
+        main (str): Source files containing the `main()` function that the `rustc` compiler starts
+                  from. Typically, `src/main.rs`.
+        deps (list): Local modules and third-party dependencies of this crate.
+        edition (str): Edition of rust to use for this crate. Rust has different editions (2015,
+                  2018, 2021) that represent sets of language features. Ensures crate is compiled
+                  with appropriate features.
+        visibility: Visibility declaration.
     """
     cmd, tools = _rustc_cmds(
         name=name,
@@ -181,7 +192,7 @@ def rust_binary(name, main, deps=None, visibility=None, edition='2018'):
     )
 
 
-def rust_test(name:str, root:str, modules:list=None, deps:list=[], visibility=None, edition:str="2018"):
+def rust_test(name:str, root:str, modules:list=None, deps:list=[], edition:str="2018", visibility:list=None):
     """Defines a test rule for a Rust library.
 
     Note that while this correctly runs tests, the Rust test runner has no
@@ -192,10 +203,14 @@ def rust_test(name:str, root:str, modules:list=None, deps:list=[], visibility=No
     more detailed feedback here.
 
     Args:
-      name: Name of the rule.
-      srcs: Source files for test.
-      deps: Dependencies of this rule needed for it to compile.
-      visibility: Visibility declaration.
+        name (name): Name of the test harness we're creating.
+        root (str): Source file that the `rustc` compiler starts from and makes up the test harness.
+        modules (list): Local modules that make up the test harness.
+        deps (lists): Third-party dependencies of the test harness.
+        edition (str): Edition of rust to use for this test harness. Rust has different editions 
+                  (2015, 2018, 2021) that represent sets of language features. Ensures crate is 
+                  compiled with appropriate features.
+        visibility (list): Visibility declaration.
     """
     if modules:
         filegroup(
@@ -237,9 +252,9 @@ def _collect_extern_paths(
         name:str, edition:str, crate_type:str, deps:list, test:bool=False,
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
-    def extern_flags(labels):
+    def extern_flags(dep, labels):
         externs = []
-        for label in labels: # TODO: filter out only the ones we need.
+        for label in labels:
             flag = label.split(':')
             crate = flag[0].replace('-', '_')
             path = flag[1]
@@ -250,8 +265,7 @@ def _collect_extern_paths(
         externs = []
         for dep in deps:
             labels = get_labels(dep, 'rust_crate_path:')
-            flags = extern_flags(labels)
-            externs += flags
+            externs += extern_flags(dep, labels)
         if externs:
             cmds, _ = _rustc_cmds(
                 name=name,
