@@ -1,5 +1,6 @@
 use std::io;
 extern crate math;
+use math::sub;
 
 fn main() {
     println!("Guess the number!!");
@@ -22,6 +23,6 @@ fn main() {
     
     println!("You guessed: {guess}");
 
-    let m2 = math::add::add_two(guess);
+    let m2 = sub::sub_two(guess);
     println!("Minus two: {m2}")
 }
