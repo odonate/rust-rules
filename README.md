@@ -6,8 +6,8 @@ First add the plugin to your project. In `plugins/BUILD`:
 ```python
 plugin_repo(
     name = "rust",
-	owner = "odonate",
-	revision = "<Some git tag, commit, or other reference>",
+    owner = "odonate",
+    revision = "<Some git tag, commit, or other reference>",
 )
 ```
 
@@ -38,24 +38,24 @@ subinclude("///rust//build_defs:rust")
 
 rust_library(
     name = "lib",
-	root = "src/lib.rs",
-	modules = [
-	    "src/module_a.rs",
-		"src/module_a/sub_module_a.rs",
-	    "src/module_b.rs",
-		"src/module_b/sub_module_b.rs",
-	],
+    root = "src/lib.rs",
+    modules = [
+        "src/module_a.rs",
+        "src/module_a/sub_module_a.rs",
+        "src/module_b.rs",
+        "src/module_b/sub_module_b.rs",
+    ],
 )
 
 rust_test(
     name = "lib",
-	root = "src/lib.rs",
-	modules = [
-	    "src/module_a.rs",
-		"src/module_a/sub_module_a.rs",
-	    "src/module_b.rs",
-		"src/module_b/sub_module_b.rs",
-	],
+    root = "src/lib.rs",
+    modules = [
+        "src/module_a.rs",
+        "src/module_a/sub_module_a.rs",
+        "src/module_b.rs",
+        "src/module_b/sub_module_b.rs",
+    ],
 )
 ```
 
@@ -103,11 +103,11 @@ subinclude("///rust//build_defs:rust")
 
 rust_binary(
     name = "bin",
-	root = "src/main.rs",
-	deps = [
-	    ":lib",
-		"//third_party/rust:<rust_crate_name>",
-	],
+    root = "src/main.rs",
+    deps = [
+        ":lib",
+        "//third_party/rust:<rust_crate_name>",
+    ],
 )
 ```
 
