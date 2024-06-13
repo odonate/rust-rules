@@ -1,25 +1,25 @@
 [Please]
 version = 17.8.7
 
-[PluginDefinition]
-name = rust
-
-[build]
+[Build]
 path = /opt/rust-rules/toolchain/1.0/bin/:/bin:/usr/bin:/usr/local/bin
 timeout = 2000
 
-[parse]
+[BuildConfig]
+rust-toolchain = //third_party/rust:toolchain
+
+[Parse]
 preloadsubincludes = ///shell//build_defs:shell
 preloadbuilddefs = toolchain/versions.build_defs
+preloadbuilddefs = build_defs/rust_toolchain.build_defs
+preloadbuilddefs = build_defs/rust.build_defs
+preloadbuilddefs = build_defs/rust_crate.build_defs
 
 [Plugin "shell"]
 Target = //plugins:shell
 
-;; [Plugin "rust"]
-;; RustTool = //third_party/rust:toolchain
-
-[buildconfig]
-rust-toolchain = //third_party/rust:toolchain
+[PluginDefinition]
+name = rust
 
 [alias "rustc"]
 cmd = run //scripts:rustc
