@@ -1,0 +1,15 @@
+[package]
+name = "cargo_calculator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tonic = "0.11.0"
+tokio = { version = "1", features = ["full"] }
+prost = "0.12"
+
+[build-dependencies]
+tonic-build = "0.11"
+
+[env]
+PROTOC = "~/rust-rules/plz-out/bin/third_party/proto/protoc"

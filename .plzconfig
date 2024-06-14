@@ -11,13 +11,27 @@ StdLib = //third_party/rust:toolchain_stdlib
 TargetDir = //third_party/rust:toolchain_target
 
 [Parse]
+preloadsubincludes = ///proto//build_defs:proto
 preloadsubincludes = ///shell//build_defs:shell
+preloadsubincludes = ///python//build_defs:python
 preloadbuilddefs = build_defs/rust_toolchain.build_defs
 preloadbuilddefs = build_defs/rust.build_defs
 preloadbuilddefs = build_defs/rust_crate.build_defs
 
 [Plugin "shell"]
 Target = //plugins:shell
+
+[Plugin "proto"]
+Target = //plugins:proto
+ProtocTool = //third_party/proto:protoc
+;; LanguageDef = ///go_proto//build_defs:go_proto
+
+;; [Plugin "go-proto"]
+;; Target = //plugins:go-proto
+
+[Plugin "python"]
+Target = //plugins:python
+DefaultInterpreter = python3
 
 [PluginDefinition]
 name = rust
