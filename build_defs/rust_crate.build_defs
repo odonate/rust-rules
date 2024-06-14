@@ -139,7 +139,7 @@ def rust_crate(
         warns:list=None, allows:list=None, compile_env:dict=None,     
         # Build params.
         build_root:str=None, build_deps:list=None, build_out_dir:str='target/debug/build',
-        build_compile_env:dict=None, build_run_env:dict=None,
+        build_compile_env:dict={}, build_run_env:dict={},
         os:str=None,
         arch:str=None,
         visibility:list=["PUBLIC"],
@@ -191,7 +191,7 @@ def rust_crate(
         host = f'{arch}-{os}'
         formatted_base = base.replace('-', '_').replace('.', '_')
         build_out_dir = f'{build_out_dir}/{formatted_base}'
-        build_out = _collect_build_script_output(base, crate_fg, build_root, build_deps, edition, build_out_dir, features, host, build_compile_env)
+        build_out = _collect_build_script_output(base, crate_fg, build_root, build_deps, edition, build_out_dir, features, host, build_compile_env, build_run_env)
         extra_deps.append(build_out)
     else:
         build_out = None
@@ -274,7 +274,7 @@ def _compile_rust_crate(
     )
     
 def _compile_build_script(
-        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, build_compile_env:dict=None,
+        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, compile_env:dict={},
 ):
     """Compiles the build script before execution"""
     crate_name = f'build_script_build'
@@ -302,7 +302,7 @@ def _compile_build_script(
         deps = deps,
         requires = ['rust'],
         tools = tools,
-        env = build_compile_env,
+        env = compile_env,
         pre_build=_collect_extern_paths(
             base=name, # not required?
             crate_name=crate_name,
@@ -318,11 +318,12 @@ def _compile_build_script(
 
 
 def _run_build_script(
-        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, build_compile_env:dict=None,
+        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
 ):
     """Run compiled build script before building package."""
-    compilation, tools = _compile_build_script(name, crate_fg, root, deps, edition, out_dir, features, build_compile_env)
+    compilation, tools = _compile_build_script(name, crate_fg, root, deps, edition, out_dir, features, compile_env)
 
+    run_env['RUST_BACKTRACE'] = 'full'
     return build_rule(
         name=name,
         tag = 'run_build_script',
@@ -338,18 +339,16 @@ def _run_build_script(
         outs = { 'output': [f'{out_dir}/out'] },
         deps = [compilation],
         pass_env = ['TOOLS_RUSTC'],
-        env = {
-            'RUST_BACKTRACE': 'full',
-        },
+        env = run_env,
         tools = tools,
         building_description = f'Running build script {name}...',
     )
 
 
 def _collect_build_script_output(
-        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, build_compile_env:dict=None,
+        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
 ):
-    build_exec = _run_build_script(name, crate_fg, root, deps, edition, out_dir, features, host, build_compile_env)
+    build_exec = _run_build_script(name, crate_fg, root, deps, edition, out_dir, features, host, compile_env, run_env)
     cmd = """
     output=""
     while IFS= read -r line; do

@@ -222,6 +222,52 @@ rust_crate(
     features = ["raw"],
 )
 
+# rust_crate(
+#     name = "hashbrown",
+#     crate = "hashbrown",
+#     version = "0.12.3",
+#     edition = "2021",
+#     features = [
+#         "raw",
+#     ],
+# )
+
+rust_crate(
+    name = "equivalent",
+    crate = "equivalent",
+    edition = "2015",
+    version = "1.0.1",
+)
+
+# rust_crate(
+#     name = "indexmap_1_9_3",
+#     crate = "indexmap",
+#     version = "1.9.3",
+#     edition = "2021",
+#     build_root = "build.rs",
+#     deps = [
+#         ":autocfg",
+#     ],
+# )
+
+rust_crate(
+    name = "indexmap",
+    crate = "indexmap",
+    edition = "2021",
+    version = "2.2.6",
+    features = [
+        "default",
+        "std",
+    ],
+    deps = [
+        ":equivalent",
+        ":hashbrown",
+    ],
+    allows = [
+        "clippy::style",
+    ],
+)
+
 rust_crate(
     name = "anyhow",
     crate = "anyhow",
@@ -232,13 +278,6 @@ rust_crate(
         "default",
         "std",
     ],
-)
-
-rust_crate(
-    name = "equivalent",
-    crate = "equivalent",
-    edition = "2015",
-    version = "1.0.1",
 )
 
 rust_crate(
@@ -253,10 +292,10 @@ rust_crate(
     crate = "lock_api",
     edition = "2021",
     version = "0.4.12",
-    build_root = "build.rs",
-    build_deps = [":autocfg"],
     features = ["atomic_usize", "default"],
     deps = [":scopeguard"],
+    build_root = "build.rs",
+    build_deps = [":autocfg"],
 )
 
 rust_crate(
@@ -335,35 +374,6 @@ rust_crate(
     version = "0.3.30",
     features = [
         "alloc",
-    ],
-)
-
-# rust_crate(
-#     name = "indexmap_1_9_3",
-#     crate = "indexmap",
-#     version = "1.9.3",
-#     edition = "2021",
-#     src_root = "build.rs",
-#     deps = [
-#         ":autocfg",
-#     ],
-# )
-
-rust_crate(
-    name = "indexmap",
-    crate = "indexmap",
-    edition = "2021",
-    version = "2.2.6",
-    features = [
-        "default",
-        "std",
-    ],
-    deps = [
-        ":equivalent",
-        ":hashbrown",
-    ],
-    allows = [
-        "clippy::style",
     ],
 )
 
@@ -519,7 +529,7 @@ rust_crate(
     crate = "httparse",
     version = "1.9.3",
     edition = "2018",
-    src_root = "build.rs",
+    build_root = "build.rs",
     features = [
         "default",
         "std",
@@ -545,7 +555,6 @@ rust_crate(
     crate = "rustix",
     version = "0.38.34",
     edition = "2021",
-    src_root = "build.rs",
     features = [
         "alloc",
         "default",
@@ -558,6 +567,7 @@ rust_crate(
         ":bitflags",
         ":linux_raw_sys",
     ],
+    build_root = "build.rs",
 )
 
 rust_crate(
@@ -623,3 +633,166 @@ rust_crate(
         "std",
     ],
 )
+
+rust_crate(
+    name = "fixedbitset",
+    crate = "fixedbitset",
+    version = "0.4.2",
+    edition = "2015",
+)
+
+rust_crate(
+    name = "want",
+    crate = "want",
+    version = "0.3.1",
+    edition = "2018",
+    deps = [
+        ":try_lock",
+    ],
+)
+
+rust_crate(
+    name = "petgraph",
+    crate = "petgraph",
+    version = "0.6.5",
+    edition = "2018",
+    deps = [
+        ":fixedbitset",
+        ":indexmap",
+    ],
+)
+
+rust_crate(
+    name = "futures_channel",
+    crate = "futures-channel",
+    version = "0.3.30",
+    edition = "2018",
+    features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+    deps = [
+        ":futures_core",
+    ],
+)
+
+rust_crate(
+    name = "heck",
+    crate = "heck",
+    version = "0.5.0",
+    edition = "2021",
+)
+
+rust_crate(
+    name = "httpdate",
+    crate = "httpdate",
+    version = "1.0.3",
+    edition = "2021",
+)
+
+rust_crate(
+    name = "log",
+    crate = "log",
+    version = "0.4.21",
+    edition = "2021",
+)
+
+rust_crate(
+    name = "multimap",
+    crate = "multimap",
+    version = "0.10.0",
+    edition = "2015",
+)
+
+rust_crate(
+    name = "tower_layer",
+    crate = "tower-layer",
+    version = "0.3.2",
+    edition = "2018",
+)
+
+rust_crate(
+    name = "regex_automata",
+    crate = "regex-automata",
+    version = "0.4.7",
+    edition = "2021",
+    features = [
+        "alloc",
+        "meta",
+        "nfa-pikevm",
+        "nfa-thompson",
+        "std",
+        "syntax",
+        "unicode-bool",
+    ],
+    deps = [
+        ":regex_syntax",
+    ],
+)
+
+rust_crate(
+    name = "mime",
+    crate = "mime",
+    version = "0.3.17",
+    edition = "2015",
+)
+
+rust_crate(
+    name = "tempfile",
+    crate = "tempfile",
+    version = "3.10.1",
+    edition = "2021",
+    deps = [
+        ":cfg_if",
+        ":fastrand",
+        ":rustix",
+    ],
+)
+
+rust_crate(
+    name = "serde",
+    crate = "serde",
+    version = "1.0.203",
+    edition = "2018",
+    features = [
+        "default",
+        "std",
+    ],
+    build_root = "build.rs",
+    build_run_env = {
+        'TARGET': 'x86_64-unknown-linux-gnu',
+    },
+)
+
+# rust_crate(
+#     name = "axum_core",
+#     crate = "axum-core",
+#     version = "0.3.4",
+#     edition = "2021",
+#     deps = [
+#         ":async_trait",
+#         ":bytes",
+#         ":futures_util",
+#         ":http",
+#         ":http_body",
+#         ":mime",
+#         ":tower_layer",
+#         ":tower_service",
+#     ],
+#     build_root = "build.rs",
+#     build_deps = [
+#         ":rustversion",
+#     ],
+# )
+
+# rust_crate(
+#     name = "axum",
+#     crate = "axum",
+#     version = "0.6.20",
+#     edition = "2021",
+#     build_root = "build.rs",
+#     build_deps = [
+#         ":rustversion",
+#     ],
+# )
