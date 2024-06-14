@@ -61,6 +61,13 @@ Flag = ["--version", "-vV", "--explain"]
 [alias "cargo"]
 Desc = Runs the cargo binary and sets required env vars.
 Cmd = run //scripts:cargo
-Subcommand = ["build", "test", "run", "clean", "check", "new"]
+Subcommand = ["build", "test", "run", "clean", "check", "new", "rustc"]
 Flag = ["--release", "--verbose", "--manifest-path"]
+PositionalLabels = true
+
+[alias "cargo-nightly"]
+Desc = Runs the cargo binary and sets required env vars.
+Cmd = run //scripts:cargo_nightly
+Subcommand = ["build", "test", "run", "clean", "check", "new", "rustc"]
+Flag = ["--release", "--verbose", "--manifest-path", "-Z"]
 PositionalLabels = true

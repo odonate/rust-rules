@@ -7,6 +7,13 @@ rust_toolchain(
     visibility = ["PUBLIC"],
 )
 
+rust_toolchain(
+    name = "toolchain_nightly",
+    hashes = ["af79758278cfe385ab0d4520f2c64f4ae7f9c7c6"],
+    version = "nightly",
+    visibility = ["PUBLIC"],
+)
+
 #### Used by examples/rustc_guessing_game ####
 rust_crate(
     name="libc",
@@ -331,6 +338,17 @@ rust_crate(
     ],
 )
 
+# rust_crate(
+#     name = "indexmap_1_9_3",
+#     crate = "indexmap",
+#     version = "1.9.3",
+#     edition = "2021",
+#     src_root = "build.rs",
+#     deps = [
+#         ":autocfg",
+#     ],
+# )
+
 rust_crate(
     name = "indexmap",
     crate = "indexmap",
@@ -458,4 +476,150 @@ rust_crate(
         # TODO: absolute path would be better.
         'OUT_DIR': '../../target/debug/build/rustversion_1_0_17/out',
     },
+)
+
+rust_crate(
+    name = "tracing_core",
+    crate = "tracing-core",
+    version = "0.1.32",
+    edition = "2018",
+    features = [
+        "once_cell",
+        "std",
+    ],
+    deps = [
+        ":once_cell",
+    ],
+)
+
+rust_crate(
+    name = "futures_sink",
+    crate = "futures-sink",
+    version = "0.3.30",
+    edition = "2018",
+    features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+)
+
+rust_crate(
+    name = "bitflags",
+    crate = "bitflags",
+    version = "2.5.0",
+    edition = "2021",
+    features = [
+        "std",
+    ],
+)
+
+rust_crate(
+    name = "httparse",
+    crate = "httparse",
+    version = "1.9.3",
+    edition = "2018",
+    src_root = "build.rs",
+    features = [
+        "default",
+        "std",
+    ],
+)
+
+rust_crate(
+    name = "linux_raw_sys",
+    crate = "linux-raw-sys",
+    version = "0.4.14",
+    edition = "2021",
+    features = [
+        "elf",
+        "errno",
+        "general",
+        "ioctl",
+        "no_std",
+    ],
+)
+
+rust_crate(
+    name = "rustix",
+    crate = "rustix",
+    version = "0.38.34",
+    edition = "2021",
+    src_root = "build.rs",
+    features = [
+        "alloc",
+        "default",
+        "fs",
+        "libc-extra-traits",
+        "std",
+        "use-libc-auxv",
+    ],
+    deps = [
+        ":bitflags",
+        ":linux_raw_sys",
+    ],
+)
+
+rust_crate(
+    name = "tower_service",
+    crate = "tower-service",
+    version = "0.3.2",
+    edition = "2018",
+)
+
+rust_crate(
+    name = "regex_syntax",
+    crate = "regex-syntax",
+    version = "0.8.4",
+    edition = "2021",
+    features = [
+        "std",
+        "unicode-bool",
+    ],
+)
+
+rust_crate(
+    name = "prettyplease",
+    crate = "prettyplease",
+    version = "0.2.20",
+    edition = "2021",
+    build_root = "build.rs",
+    build_compile_env = {
+        'CARGO_PKG_VERSION': '0.1.0',
+    },
+    deps = [
+        ":proc_macro2",
+        ":syn",
+    ],
+)
+
+rust_crate(
+    name = "http_body",
+    crate = "http-body",
+    version = "0.4.6",
+    edition = "2018",
+    deps = [
+        ":bytes",
+        ":http",
+        ":pin_project_lite",
+    ],
+)
+
+rust_crate(
+    name = "try_lock",
+    crate = "try-lock",
+    version = "0.2.5",
+    edition = "2015",
+)
+
+rust_crate(
+    name = "fastrand",
+    crate = "fastrand",
+    version = "2.1.0",
+    edition = "2018",
+    features = [
+        "alloc",
+        "default",
+        "std",
+    ],
 )

@@ -11,3 +11,10 @@ sh_binary(
     deps = ["//third_party/rust:toolchain_cargo"],
     visibility=["PUBLIC"],
 )
+
+sh_binary(
+    name = "cargo_nightly",
+    main = "cargo_nightly.sh",
+    deps = ["//third_party/rust:toolchain_nightly_cargo"],
+    visibility=["PUBLIC"],
+)

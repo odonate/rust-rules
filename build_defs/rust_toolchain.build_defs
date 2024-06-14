@@ -4,7 +4,7 @@ We do not use Cargo so try and replicate what Cargo does.
 
 """
 
-def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=None, visibility=None):
+def rust_toolchain(name:str, version:str, os=None, arch=None, hashes=None, deps=None, visibility=None, nightly=False):
     """Defines rules to fetch a Rust toolchain.
 
     Typically you'd set the name of this rule into rustc_toolchain, either in your .plzconfig
