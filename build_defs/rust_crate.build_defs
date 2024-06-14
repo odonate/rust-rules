@@ -132,13 +132,14 @@ def _rustc_crate_cmds(
 
 def rust_crate(
         name:str, crate:str, version:str, deps:list=None,
-        build_script:str=None, features:list=None,
-        binary:bool=False, visibility:list=["PUBLIC"],
-        edition:str='2015',
+        build_script:str=None, build_deps:list=None,
+        features:list=None, binary:bool=False,
+        edition:str='2015', visibility:list=["PUBLIC"],
         out_dir:str='target/debug/deps',
         build_out_dir:str='target/debug/build',
         warns:list=None,
         allows:list=None,
+        src_path:str='src',
 ):
     base = f'{crate}-{version}'
     # Download the crate.
@@ -149,11 +150,13 @@ def rust_crate(
         out=f'{base}_download',
     )
     # Extract the tarball .cargo file.
-    extract_rule = genrule(
-        name=f'{base}_extraction',
+    
+    extract_rule = build_rule(
+        name=base,
+        tag="extraction",
         srcs=[download_rule],
         outs = {
-            'src': [f'{base}/src'],
+            'src': [f'{base}/{src_path}'],
             'build_root': [f'{base}/{build_script}' if build_script else None],
         },
         cmd = " && ".join([
@@ -179,7 +182,7 @@ def rust_crate(
     
     # Run any required build scripts.
     if build_script:
-        build_out = _collect_build_script_output(base, build_root, edition, build_out_dir, features)
+        build_out = _collect_build_script_output(base, build_script, build_root, build_deps, edition, build_out_dir, features)
         extra_deps.append(build_out)
     else:
         build_out = None
@@ -241,7 +244,7 @@ def _compile_rust_crate(
         ],
         tools = tools,
         pre_build=_collect_extern_paths(
-            name=name,
+            crate_name=name,
             base=base,
             edition=edition,
             binary=binary,
@@ -250,11 +253,13 @@ def _compile_rust_crate(
             features=features,
             build_out=build_out,
             deps=deps,
+            warns=warns,
+            allows=allows,
         ) if deps else None,
     )
     
 def _compile_build_script(
-        name:str, root:str, edition:str, out_dir:str, features:list=None,
+        name:str, script:str, root:str, deps:list, edition:str, out_dir:str, features:list=None,
 ):
     """Compiles the build script before execution"""
     
@@ -268,6 +273,7 @@ def _compile_build_script(
         emit=['dep-info', 'link'], # Omits metadata.
         out_dir=out_dir,
         features=features,
+        deps=deps,
     )
     return build_rule(
         name = name,
@@ -278,18 +284,30 @@ def _compile_build_script(
             'dep_info': [f'{out_dir}/{crate_name}.d']
         },
         cmd = cmd,
+        deps = deps,
         requires = ['rust'],
         tools = tools,
+        pre_build=_collect_extern_paths(
+            crate_name=crate_name,
+            base=name, # not required?
+            edition=edition,
+            binary=True,
+            crate_type='bin',
+            out_dir=out_dir,
+            features=features,
+            deps=deps,
+            build_script=script,
+        ) if deps else None,
         building_description = f'Compiling build script for {name}...',
     ), tools
 
 
 def _run_build_script(
-        name:str, root:str, edition:str, out_dir:str, features:list=None,
+        name:str, script:str, root:str, deps:list, edition:str, out_dir:str, features:list=None,
 ):
     """Run compiled build script before building package."""
     output_name = name.replace('-', '_').replace('.', '_')
-    compilation, tools = _compile_build_script(name, root, edition, out_dir, features)
+    compilation, tools = _compile_build_script(name, script, root, deps, edition, out_dir, features)
     return build_rule(
         name=name,
         tag = 'run_build_script',
@@ -312,9 +330,9 @@ def _run_build_script(
 
 
 def _collect_build_script_output(
-        name:str, root:str, edition:str, out_dir:str, features:list=None,
+        name:str, script:str, root:str, deps:list, edition:str, out_dir:str, features:list=None,
 ):
-    build_exec = _run_build_script(name, root, edition, out_dir, features)
+    build_exec = _run_build_script(name, script, root, deps, edition, out_dir, features)
     output_name = name.replace('-', '_').replace('.', '_')
     cmd = """
     output=""
@@ -340,9 +358,10 @@ def _collect_build_script_output(
     
     
 def _collect_extern_paths(
-        name:str, base:str, edition:str, binary:bool,
+        crate_name:str, base:str, edition:str, binary:bool,
         crate_type:str, out_dir:str, features:list,
-        build_out:str, deps:list,
+        build_out:str=None, deps:list, build_script:str=None,
+        warns:list=None, allows:list=None,
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
     def extern_flags(dep, labels):
@@ -356,16 +375,21 @@ def _collect_extern_paths(
         return externs
             
     def collect_extern_paths(name):
+        src_path = 'main.rs' if binary else 'lib.rs'
+        if build_script:
+            src_path = None
+        
         externs = []
+        label_format = 'rust_crate_path:' if binary else 'rust_md_path:'
         for dep in deps:
-            labels = get_labels(dep, 'rust_md_path:')
+            labels = get_labels(dep, label_format)
             externs += extern_flags(dep, labels)
         if externs:
             cmds, _ = _rustc_crate_cmds(
                 name=base,
-                crate_name=name,
+                crate_name=crate_name,
                 edition=edition,
-                src_path='main.rs' if binary else 'lib.rs',
+                src_path=src_path,
                 err_format='human',
                 crate_type=crate_type,
                 out_dir=out_dir,
@@ -373,6 +397,8 @@ def _collect_extern_paths(
                 build_out=build_out,
                 externs=externs,
                 deps=deps,
+                warns=warns,
+                allows=allows,
             )
             for k, v in cmds.items():
                 set_command(name, k, v)
