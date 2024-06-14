@@ -7,6 +7,7 @@ rust_toolchain(
     visibility = ["PUBLIC"],
 )
 
+#### Used by examples/rustc_guessing_game ####
 rust_crate(
     name="libc",
     crate="libc",
@@ -74,4 +75,22 @@ rust_crate(
         ":rand_chacha",
         ":rand_core",
     ],
+)
+
+#### Used by examples/rustc_calculator ####
+rust_crate(
+    name = "unicode_ident",
+    crate = "unicode-ident",
+    edition = "2018",
+    version = "1.0.12",
+)
+
+rust_crate(
+    name = "proc_macro2",
+    build_script = "build.rs",
+    crate = "proc-macro2",
+    edition = "2021",
+    features = ["default", "proc-macro"],
+    version = "1.0.85",
+    deps = [":unicode_ident"],
 )
