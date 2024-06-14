@@ -14,6 +14,8 @@ def _rustc_crate_cmds(
         cap_lints='allow',
         externs:list=None,
         build_out:str=None,
+        warns:list=None,
+        allows:list=None,
 ):
     """Returns the commands to pass to rustc, and tools to use for it.
     
@@ -50,6 +52,14 @@ def _rustc_crate_cmds(
                   is used heavily by Cargo; it will pass `--cap-lints allow` when compiling your 
                   dependencies, so that if they have any warnings, they do not pollute the output.
         build_out (string): The output of any build scripts that were run.
+        warns (list): Sets which lints should be set to warn level. Note: The order of these lint
+                  level arguments is taken into account, see 
+                  `https://doc.rust-lang.org/rustc/lints/levels.html#via-compiler-flag` for more
+                  information.
+        allows (list): Sets which lints should be set to allow level. Note: The order of these lint
+                  level arguments is taken into account, see 
+                  `https://doc.rust-lang.org/rustc/lints/levels.html#via-compiler-flag` for more
+                  information.
     """
     cmd = ['$TOOLS_RUSTC']
     if crate_name:
@@ -85,6 +95,10 @@ def _rustc_crate_cmds(
         cmd.extend([f'-C {k}={v}' for k,v in sorted(codegen.items())])
     if features:
         cmd.extend([f'--cfg feature=\\"{feature}\\"' for feature in features])
+    if warns:
+        cmd.extend([f'--warn="{warn}"' for warn in warns])
+    if allows:
+        cmd.extend([f'--allow="{allow}"' for allow in allows])
     if out_dir:
         # TODO: use name-metadata instead of just name.
         cmd.append(f'--out-dir {out_dir}')
@@ -121,8 +135,10 @@ def rust_crate(
         build_script:str=None, features:list=None,
         binary:bool=False, visibility:list=["PUBLIC"],
         edition:str='2015',
-        out_dir='target/debug/deps',
-        build_out_dir='target/debug/build',
+        out_dir:str='target/debug/deps',
+        build_out_dir:str='target/debug/build',
+        warns:list=None,
+        allows:list=None,
 ):
     base = f'{crate}-{version}'
     # Download the crate.
@@ -181,12 +197,14 @@ def rust_crate(
         extra_deps=extra_deps,
         visibility=visibility,
         out_dir=out_dir,
+        warns=warns,
+        allows=allows,
     )
 
 def _compile_rust_crate(
-        name:str, crate:str, version:str, edition:str, binary:bool,
-        features:list, src_rule:str, build_out:str, deps:list,
-        extra_deps:list, visibility:list, out_dir:str,
+        name:str, crate:str, version:str, edition:str, binary:bool, features:list, src_rule:str,
+        build_out:str, deps:list, extra_deps:list, visibility:list, out_dir:str, warns:list,
+        allows:list,
 ):
     pkg = package_name()
     base = f'{crate}-{version}'
@@ -202,6 +220,8 @@ def _compile_rust_crate(
         features=features,
         build_out=build_out,
         deps=deps,
+        warns=warns,
+        allows=allows,
     )
     return build_rule(
         name = name,
