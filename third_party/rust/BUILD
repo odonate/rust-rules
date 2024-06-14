@@ -12,7 +12,7 @@ rust_crate(
     name="libc",
     crate="libc",
     version="0.2.155",
-    build_script="build.rs",
+    build_root="build.rs",
     edition="2015",
 )
 
@@ -87,7 +87,7 @@ rust_crate(
 
 rust_crate(
     name = "proc_macro2",
-    build_script = "build.rs",
+    build_root = "build.rs",
     crate = "proc-macro2",
     edition = "2021",
     features = ["default", "proc-macro"],
@@ -196,7 +196,7 @@ rust_crate(
 
 rust_crate(
     name = "parking_lot_core",
-    build_script = "build.rs",
+    build_root = "build.rs",
     crate = "parking_lot_core",
     edition = "2021",
     version = "0.9.10",
@@ -218,7 +218,7 @@ rust_crate(
 rust_crate(
     name = "anyhow",
     crate = "anyhow",
-    build_script = "build.rs",
+    build_root = "build.rs",
     edition = "2018",
     version = "1.0.86",
     features = [
@@ -246,7 +246,7 @@ rust_crate(
     crate = "lock_api",
     edition = "2021",
     version = "0.4.12",
-    build_script = "build.rs",
+    build_root = "build.rs",
     build_deps = [":autocfg"],
     features = ["atomic_usize", "default"],
     deps = [":scopeguard"],
@@ -282,7 +282,7 @@ rust_crate(
         "default",
         "std",
     ],
-    build_script = "build.rs",
+    build_root = "build.rs",
     build_deps = [
         ":autocfg",
     ],
@@ -304,7 +304,7 @@ rust_crate(
         "default",
         "std",
     ],
-    src_path = '',
+    src_root = 'lib.rs',
 )
 
 rust_crate(
@@ -447,10 +447,15 @@ rust_crate(
     ],
 )
 
-# rust_crate(
-#     name = "rustversion",
-#     crate = "rustversion",
-#     build_script = "build.rs",
-#     edition = "2018",
-#     version = "1.0.17",
-# )
+rust_crate(
+    name = "rustversion",
+    crate = "rustversion",
+    version = "1.0.17",
+    edition = "2018",
+    crate_type = 'proc-macro',
+    build_root = "build/build.rs",
+    compile_env = {
+        # TODO: absolute path would be better.
+        'OUT_DIR': '../../target/debug/build/rustversion_1_0_17/out',
+    },
+)
