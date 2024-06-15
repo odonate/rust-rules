@@ -974,26 +974,26 @@ rust_crate(
     ],
 )
 
-# rust_crate(
-#     name = "axum_core",
-#     crate = "axum-core",
-#     version = "0.3.4",
-#     edition = "2021",
-#     deps = [
-#         ":async_trait",
-#         ":bytes",
-#         ":futures_util",
-#         ":http",
-#         ":http_body",
-#         ":mime",
-#         ":tower_layer",
-#         ":tower_service",
-#     ],
-#     build_root = "build.rs",
-#     build_deps = [
-#         ":rustversion",
-#     ],
-# )
+rust_crate(
+    name = "axum_core",
+    crate = "axum-core",
+    version = "0.3.4",
+    edition = "2021",
+    deps = [
+        ":async_trait",
+        ":bytes",
+        ":futures_util",
+        ":http",
+        ":http_body",
+        ":mime",
+        ":tower_layer",
+        ":tower_service",
+    ],
+    build_root = "build.rs",
+    build_deps = [
+        ":rustversion",
+    ],
+)
 
 # rust_crate(
 #     name = "axum",

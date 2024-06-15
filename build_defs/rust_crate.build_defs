@@ -219,7 +219,6 @@ def _compile_rust_crate(
         deps:list|dict, crate_type:str, out_dir:str, build_out:str, extra_deps:list, warns:list,
         allows:list, compile_env:dict, visibility:list,
 ):
-    pkg = package_name()
     base = f'{crate}-{version}'
     cmd, tools = _rustc_crate_cmds(
         name=base,
@@ -243,6 +242,7 @@ def _compile_rust_crate(
         crate_deps = deps.values()
     else:
         fail(f'Unknown deps type {deps}')
+
     return build_rule(
         name = name,
         srcs = [crate_fg],
@@ -256,10 +256,7 @@ def _compile_rust_crate(
         deps = crate_deps + extra_deps if deps else extra_deps,
         visibility = visibility,
         requires = ['rust'],
-        labels=[
-            f'rust_crate_path:{crate}:{pkg}/{out_dir}/lib{name}.rlib',
-            f'rust_md_path:{crate}:{pkg}/{out_dir}/lib{name}.rmeta',
-        ],
+        labels=_construct_labels(name, crate, crate_type, out_dir),
         tools = tools,
         pre_build=_collect_extern_paths(
             base=base,
@@ -377,6 +374,22 @@ def _collect_build_script_output(
         building_description = f'Collecting build script outputs for {name}...',
     )
         
+    
+def _construct_labels(name:str, crate:str, crate_type:str, out_dir:str):
+    """Returns the labels for a rust_crate based on the crate_type"""
+    labels = []
+    pkg = package_name()
+    if crate_type in ['lib', 'rlib']:
+        crate_label = f'rust_crate_path:{crate}:{pkg}/{out_dir}/lib{name}.rlib'
+        md_label = f'rust_md_path:{crate}:{pkg}/{out_dir}/lib{name}.rmeta'
+        labels.extend([crate_label, md_label])
+    elif crate_type in ['proc-macro']:
+        crate_label = f'rust_crate_path:{crate}:{pkg}/{out_dir}/lib{name}.so'
+        md_label = f'rust_md_path:{crate}:{pkg}/{out_dir}/lib{name}.so'
+        labels.extend([crate_label, md_label])
+    else:
+        fail(f'Unsupported labels for crate type: {crate_type}')
+    return labels
     
     
 def _collect_extern_paths(
