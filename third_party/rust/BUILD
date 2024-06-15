@@ -19,8 +19,12 @@ rust_crate(
     name="libc",
     crate="libc",
     version="0.2.155",
-    build_root="build.rs",
     edition="2015",
+    features = [
+        "default",
+        "std",
+    ],
+    build_root="build.rs",
 )
 
 rust_crate(
@@ -524,6 +528,16 @@ rust_crate(
     ],
 )
 
+# rust_crate(
+#     name = "bitflags",
+#     crate = "bitflags",
+#     version = "1.3.2",
+#     edition = "2018",
+#     features = [
+#         "default",
+#     ],
+# )
+
 rust_crate(
     name = "httparse",
     crate = "httparse",
@@ -551,6 +565,16 @@ rust_crate(
 )
 
 rust_crate(
+    name = "errno",
+    crate = "errno",
+    version = "0.3.9",
+    edition = "2018",
+    deps = [
+        ":libc",
+    ],
+)
+
+rust_crate(
     name = "rustix",
     crate = "rustix",
     version = "0.38.34",
@@ -563,11 +587,26 @@ rust_crate(
         "std",
         "use-libc-auxv",
     ],
-    deps = [
-        ":bitflags",
-        ":linux_raw_sys",
-    ],
+    deps = {
+        "bitflags": ":bitflags",
+        "linux_raw_sys": ":linux_raw_sys",
+        "libc": ":libc",
+        "libc_errno": ":errno", # renamed
+    },
     build_root = "build.rs",
+    build_run_env = {
+        # Found from <cargo_out_dir>.rustc_info.json
+        "CARGO_CFG_TARGET_ARCH": "x86_64",
+        "CARGO_CFG_TARGET_ENV": "gnu",
+        "CARGO_CFG_TARGET_OS": "linux",
+        "CARGO_CFG_TARGET_POINTER_WIDTH": "64",
+        "CARGO_CFG_TARGET_ENDIAN": "little",
+        "RUSTC": CONFIG.RUST.RUSTC,
+        "TARGET": "x86_64-unknown-linux-gnu",
+    },
+    build_deps = [
+        ":libc",
+    ],
 )
 
 rust_crate(
@@ -595,7 +634,7 @@ rust_crate(
     edition = "2021",
     build_root = "build.rs",
     build_compile_env = {
-        'CARGO_PKG_VERSION': '0.1.0',
+        "CARGO_PKG_VERSION": "0.1.0",
     },
     deps = [
         ":proc_macro2",
@@ -738,17 +777,17 @@ rust_crate(
     edition = "2015",
 )
 
-rust_crate(
-    name = "tempfile",
-    crate = "tempfile",
-    version = "3.10.1",
-    edition = "2021",
-    deps = [
-        ":cfg_if",
-        ":fastrand",
-        ":rustix",
-    ],
-)
+# rust_crate(
+#     name = "tempfile",
+#     crate = "tempfile",
+#     version = "3.10.1",
+#     edition = "2021",
+#     deps = [
+#         ":cfg_if",
+#         ":fastrand",
+#         ":rustix",
+#     ],
+# )
 
 rust_crate(
     name = "serde",
@@ -761,9 +800,179 @@ rust_crate(
     ],
     build_root = "build.rs",
     build_run_env = {
-        'TARGET': 'x86_64-unknown-linux-gnu',
+        "TARGET": "x86_64-unknown-linux-gnu",
     },
 )
+
+rust_crate(
+    name = "matchit",
+    crate = "matchit",
+    version = "0.7.3",
+    edition = "2021",
+    features = [
+        "default",
+    ],
+)
+
+rust_crate(
+    name = "percent_encoding",
+    crate = "percent-encoding",
+    version = "2.3.1",
+    edition = "2018",
+    features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+)
+
+# rust_crate(
+#     name = "sync_wrapper",
+#     crate = "sync-wrapper",
+#     version = "0.1.2",
+#     edition = "2018",
+# )
+
+rust_crate(
+    name = "memchr",
+    crate = "memchr",
+    version = "2.7.4",
+    edition = "2021",
+    features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+)
+
+rust_crate(
+    name = "base64",
+    crate = "base64",
+    version = "0.21.7",
+    edition = "2018",
+    features = [
+        "alloc",
+        "default",
+        "std",
+    ],
+)
+
+rust_crate(
+    name = "regex",
+    crate = "regex",
+    version = "1.10.5",
+    edition = "2021",
+    features = [
+        "std",
+        "unicode-bool",
+    ],
+    deps = [
+        ":regex_automata",
+        ":regex_syntax",
+    ],
+)
+
+# rust_crate(
+#     name = "tokio_macros",
+#     crate = "tokio-macros",
+#     version = "2.3.0",
+#     edition = "2021",
+#     crate_type = "proc-macro",
+#     deps = [
+#         ":proc_macro2",
+#         ":quote",
+#         ":syn",
+#     ],
+# )
+
+# rust_crate(
+#     name = "prost_derive",
+#     crate = "prost-derive",
+#     version = "0.12.6",
+#     edition = "2021",
+#     crate_type = "proc-macro",
+#     deps = [
+#         ":anyhow",
+#         ":itertools",
+#         ":proc_macro2",
+#         ":quote",
+#         ":syn",
+#     ],
+# )
+
+# rust_crate(
+#     name = "tracing_attributes",
+#     crate = "tracing-attributes",
+#     version = "0.1.27",
+#     edition = "2018",
+#     crate_type = "proc-macro",
+#     deps = [
+#         ":proc_macro2",
+#         ":quote",
+#         ":syn",
+#     ],
+# )
+
+# rust_crate(
+#     name = "pin_project_internal",
+#     crate = "pin-project-internal",
+#     version = "1.1.5",
+#     edition = "2021",
+#     crate_type = "proc-macro",
+#     deps = [
+#         ":proc_macro2",
+#         ":quote",
+#         ":syn",
+#     ],
+#     warns = [
+#         "unreachable_pub",
+#         "clippy::undocumented_unsafe_blocks",
+#         "clippy::transmute_undefined_repr",
+#         "clippy::trailing_empty_array",
+#         "single_use_lifetimes",
+#         "rust_2018_idioms",
+#         "clippy::pedantic",
+#         "non_ascii_idents",
+#         "clippy::inline_asm_x86_att_syntax",
+#         "improper_ctypes_definitions",
+#         "improper_ctypes",
+#         "clippy::default_union_representation",
+#         "clippy::as_ptr_cast_mut",
+#         "clippy::all",
+#     ],
+#     allows = [
+#         "clippy::type_complexity",
+#         "clippy::too_many_lines",
+#         "clippy::too_many_arguments",
+#         "clippy::struct_field_names",
+#         "clippy::struct_excessive_bools",
+#         "clippy::single_match_else",
+#         "clippy::single_match",
+#         "clippy::similar_names",
+#         "clippy::module_name_repetitions",
+#         "clippy::missing_errors_doc",
+#         "clippy::manual_range_contains",
+#         "clippy::manual_assert",
+#         "clippy::float_cmp",
+#         "clippy::doc_markdown",
+#         "clippy::declare_interior_mutable_const",
+#         "clippy::borrow_as_ptr",
+#         "clippy::bool_assert_comparison",
+#     ],
+# )
+
+# rust_crate(
+#     name = "async_trait",
+#     crate = "async-trait",
+#     version = "0.1.80",
+#     edition = "2021",
+#     crate_type = "proc-macro",
+#     deps = [
+#         ":proc_macro2",
+#         ":quote",
+#         ":syn",
+#     ],
+# )
 
 # rust_crate(
 #     name = "axum_core",

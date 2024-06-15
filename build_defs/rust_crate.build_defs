@@ -10,7 +10,6 @@ def _rustc_crate_cmds(
         features:list=None,
         out_dir='target/debug/deps',
         search_path:str|list|dict=None,
-        deps:list=[],
         cap_lints='allow',
         externs:list=None,
         build_out:str=None,
@@ -135,10 +134,10 @@ def _rustc_crate_cmds(
 def rust_crate(
         # Crate params.
         name:str, crate:str, version:str, edition:str='2015', src_root:str='src/lib.rs',
-        features:list=None, deps:list=None, crate_type:str='lib', out_dir:str='target/debug/deps',
+        features:list=None, deps:list|dict=None, crate_type:str='lib', out_dir:str='target/debug/deps',
         warns:list=None, allows:list=None, compile_env:dict=None,     
         # Build params.
-        build_root:str=None, build_deps:list=None, build_out_dir:str='target/debug/build',
+        build_root:str=None, build_deps:list|dict=None, build_out_dir:str='target/debug/build',
         build_compile_env:dict={}, build_run_env:dict={},
         os:str=None,
         arch:str=None,
@@ -217,7 +216,7 @@ def rust_crate(
 
 def _compile_rust_crate(
         name:str, crate_fg:str, crate:str, version:str, edition:str, src_root:str, features:list,
-        deps:list, crate_type:str, out_dir:str, build_out:str, extra_deps:list, warns:list,
+        deps:list|dict, crate_type:str, out_dir:str, build_out:str, extra_deps:list, warns:list,
         allows:list, compile_env:dict, visibility:list,
 ):
     pkg = package_name()
@@ -232,11 +231,18 @@ def _compile_rust_crate(
         features=features,
         out_dir=out_dir,
         build_out=build_out,
-        deps=deps,
         warns=warns,
         allows=allows,
         compile_env=compile_env,
     )
+    if deps is None:
+        pass
+    elif isinstance(deps, list):
+        crate_deps = deps
+    elif isinstance(deps, dict):
+        crate_deps = deps.values()
+    else:
+        fail(f'Unknown deps type {deps}')
     return build_rule(
         name = name,
         srcs = [crate_fg],
@@ -247,7 +253,7 @@ def _compile_rust_crate(
             'dep_info': [f'{out_dir}/{name}.d'],
         },
         cmd = cmd,
-        deps = deps + extra_deps if deps else extra_deps,
+        deps = crate_deps + extra_deps if deps else extra_deps,
         visibility = visibility,
         requires = ['rust'],
         labels=[
@@ -288,7 +294,6 @@ def _compile_build_script(
         emit=['dep-info', 'link'], # Omits metadata.
         features=features,
         out_dir=out_dir,
-        deps=deps,
     )
     return build_rule(
         name = name,
@@ -382,21 +387,24 @@ def _collect_extern_paths(
         crate_type:str,
         features:list,
         out_dir:str,
-        deps:list,
+        deps:list|dict,
         build_out:str=None,
         warns:list=None,
         allows:list=None,
         compile_env:dict=None,
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
-    def extern_flags(dep, labels):
+    def extern_flags(dep, labels, rename=None):
         externs = []
         for label in labels:
             flag = label.split(':')
             crate = flag[0].replace('-', '_')
             path = flag[1]
             if crate == dep[1:]:
-                externs.append(f'--extern {crate}={path}')
+                if rename:
+                    externs.append(f'--extern {rename}={path}')
+                else:
+                    externs.append(f'--extern {crate}={path}')
         return externs
             
     def collect_extern_paths(name):
@@ -404,9 +412,16 @@ def _collect_extern_paths(
         label_format = 'rust_md_path:'
         if crate_type in ["bin"]:
             label_format = 'rust_crate_path:'
-        for dep in deps:
-            labels = get_labels(dep, label_format)
-            externs += extern_flags(dep, labels)
+        if isinstance(deps, dict):
+            for rename, dep in deps.items():
+                labels = get_labels(dep, label_format)
+                externs += extern_flags(dep, labels, rename)
+        elif isinstance(deps, list):
+            for dep in deps:
+                labels = get_labels(dep, label_format)
+                externs += extern_flags(dep, labels)
+        else:
+            fail(f'Unknown dep type {deps}')
         if externs:
             cmds, _ = _rustc_crate_cmds(
                 name=base,
@@ -417,7 +432,6 @@ def _collect_extern_paths(
                 crate_type=crate_type,
                 features=features,
                 out_dir=out_dir,
-                deps=deps,
                 build_out=build_out,
                 warns=warns,
                 allows=allows,
