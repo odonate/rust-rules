@@ -1,6 +1,6 @@
 def _rustc_crate_cmds(
-        name:str,
         crate_name:str,
+        version:str,
         edition:str="2018",
         src_root:str=None,
         err_format:str='json',
@@ -22,12 +22,12 @@ def _rustc_crate_cmds(
     We replicate the way Cargo invokes the rustc compiler as close as possible.
 
     Args:
-        name (str): Name of the rule. Required.
         crate_name (str): Name of the crate being built. Required.
+        version (str): Version of the crate. Required.
         edition (str): Edition of rust to use for this crate specified in the crate's Cargo.toml.
                   Rust has different editions (2015, 2018, 2021) that represent sets of language 
                   features. Ensures crate is compiled with appropriate features.
-        src_path (str): The path to script being compiled. Specifies a path to append to the $SRCS of
+        src_root (str): The path to script being compiled. Specifies a path to append to the $SRCS of
                   the compilation rule using these commands.
         err_format (str): Controls the format of error messages. Messages are printed to stderr. The
                   valid options are: human, json, short.
@@ -37,6 +37,7 @@ def _rustc_crate_cmds(
                   kinds are: asm, dep-info, link, llvm-bc, llvm-ir, metadata, mir, obj.
         codegen (dict): All of these options are passed to rustc via -C flags, short for codegen. To
                   see a version of this list for your compiler run `plz rustc -- -C help`.
+                  Rust Rules fingerprints filenames with the version via the metadata and extra-filename flags.
         features (list): Configures the compilation environment. These flags turn on or off various
                   `#[cfg]` settings for conditional compilation. For example, `--cfg feature="serde"`
                    turns on `#[cfg(feature = "serde")]`.
@@ -44,13 +45,13 @@ def _rustc_crate_cmds(
         search_path (str|list|dict): Options are passed to rust via -L flags. Adds path to search 
                   for crates and libraries. If a dict, it specifies the search_path in the form 
                   `-L KIND=PATH` where KIND may be one of: dependency, crate, native, framework, all.
+        cap_lints (string): Sets the lint cap level, the maximum level for all lints. This feature
+                  is used heavily by Cargo; it will pass `--cap-lints allow` when compiling your 
+                  dependencies, so that if they have any warnings, they do not pollute the output.
         externs (list): Specifies where external libraries are located. Allows you to pass the name
                   and location for an external crate of a direct dependency. The given crate name is
                   added to the extern prelude, similar to specifying `extern crate` within the root
                   module.
-        cap_lints (string): Sets the lint cap level, the maximum level for all lints. This feature
-                  is used heavily by Cargo; it will pass `--cap-lints allow` when compiling your 
-                  dependencies, so that if they have any warnings, they do not pollute the output.
         build_out (string): The output of any build scripts that were run.
         warns (list): Sets which lints should be set to warn level. Note: The order of these lint
                   level arguments is taken into account, see 
@@ -60,6 +61,7 @@ def _rustc_crate_cmds(
                   level arguments is taken into account, see 
                   `https://doc.rust-lang.org/rustc/lints/levels.html#via-compiler-flag` for more
                   information.
+        compile_env (dict): Environment variables to export at compile time.
     """
     export_envs = [f'export {k}={v} && ' for k,v in sorted(compile_env.items())] if compile_env else []
     cmd = export_envs + ['$TOOLS_RUSTC']
@@ -90,9 +92,9 @@ def _rustc_crate_cmds(
     elif isinstance(emit, list):
         emits = ','.join(emit)
         cmd.append(f'--emit={emits}')
+    codegen['metadata'] = version
+    codegen['extra-filename'] = f'-{version}'
     if codegen:
-        # TODO: -C metadata=xxx-hash-xxx
-        # TODO: -C extra-filename=-xxx-hash-xxx 
         cmd.extend([f'-C {k}={v}' for k,v in sorted(codegen.items())])
     if features:
         cmd.extend([f'--cfg feature=\\"{feature}\\"' for feature in features])
@@ -101,7 +103,6 @@ def _rustc_crate_cmds(
     if allows:
         cmd.extend([f'--allow="{allow}"' for allow in allows])
     if out_dir:
-        # TODO: use name-metadata instead of just name.
         cmd.append(f'--out-dir {out_dir}')
     if search_path is None:
         pass
@@ -190,7 +191,7 @@ def rust_crate(
         host = f'{arch}-{os}'
         formatted_base = base.replace('-', '_').replace('.', '_')
         build_out_dir = f'{build_out_dir}/{formatted_base}'
-        build_out = _collect_build_script_output(base, crate_fg, build_root, build_deps, edition, build_out_dir, features, host, build_compile_env, build_run_env)
+        build_out = _collect_build_script_output(crate, version, crate_fg, build_root, build_deps, edition, build_out_dir, features, host, build_compile_env, build_run_env)
         extra_deps.append(build_out)
     else:
         build_out = None
@@ -220,9 +221,10 @@ def _compile_rust_crate(
         allows:list, compile_env:dict, visibility:list,
 ):
     base = f'{crate}-{version}'
+    crate_name = crate.replace('-', '_')
     cmd, tools = _rustc_crate_cmds(
-        name=base,
-        crate_name=name,
+        crate_name=crate_name,
+        version=version,
         edition=edition,
         src_root=src_root,
         err_format='human',
@@ -243,24 +245,25 @@ def _compile_rust_crate(
     else:
         fail(f'Unknown deps type {deps}')
 
+    major, minor, _ = version.split('.')
     return build_rule(
         name = name,
         srcs = [crate_fg],
         outs = {
-            'crate': [f'{out_dir}/lib{name}.rlib' if crate_type in ['lib', 'rlib'] else None],
-            'so': [f'{out_dir}/lib{name}.so' if crate_type in ['proc-macro'] else None],
-            'md': [f'{out_dir}/lib{name}.rmeta'],
-            'dep_info': [f'{out_dir}/{name}.d'],
+            'crate': [f'{out_dir}/lib{crate_name}-{version}.rlib' if crate_type in ['lib', 'rlib'] else None],
+            'so': [f'{out_dir}/lib{crate_name}-{version}.so' if crate_type in ['proc-macro'] else None],
+            'md': [f'{out_dir}/lib{crate_name}-{version}.rmeta'],
+            'dep_info': [f'{out_dir}/{crate_name}-{major}.{minor}.d'],
         },
         cmd = cmd,
         deps = crate_deps + extra_deps if deps else extra_deps,
         visibility = visibility,
         requires = ['rust'],
-        labels=_construct_labels(name, crate, crate_type, out_dir),
+        labels=_construct_labels(crate_name, crate, version, crate_type, out_dir),
         tools = tools,
         pre_build=_collect_extern_paths(
-            base=base,
-            crate_name=name,
+            crate_name=crate_name,
+            version=version,
             edition=edition,
             src_root=src_root,
             crate_type=crate_type,
@@ -277,13 +280,13 @@ def _compile_rust_crate(
     )
     
 def _compile_build_script(
-        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, compile_env:dict={},
+        crate:str, version:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, compile_env:dict={},
 ):
     """Compiles the build script before execution"""
     crate_name = f'build_script_build'
     cmd, tools = _rustc_crate_cmds(
-        name=name,
         crate_name=crate_name,
+        version=version,
         edition=edition,
         src_root=root,
         err_format='human',
@@ -292,13 +295,14 @@ def _compile_build_script(
         features=features,
         out_dir=out_dir,
     )
+    major, minor, _ = version.split('.')
     return build_rule(
-        name = name,
+        name = f'{crate}-{version}',
         tag = 'compile_build_script',
         srcs = [crate_fg],
         outs = {
-            'build_bin': [f'{out_dir}/{crate_name}'],
-            'dep_info': [f'{out_dir}/{crate_name}.d']
+            'build_bin': [f'{out_dir}/{crate_name}-{major}.{minor}'],
+            'dep_info': [f'{out_dir}/{crate_name}-{major}.{minor}.d']
         },
         cmd = cmd,
         deps = deps,
@@ -306,8 +310,8 @@ def _compile_build_script(
         tools = tools,
         env = compile_env,
         pre_build=_collect_extern_paths(
-            base=name, # not required?
             crate_name=crate_name,
+            version=version,
             edition=edition,
             src_root=root,
             crate_type='bin',
@@ -315,19 +319,19 @@ def _compile_build_script(
             deps=deps,
             features=features,
         ) if deps else None,
-        building_description = f'Compiling build script for {name}...',
+        building_description = f'Compiling build script for {crate}-{version}...',
     ), tools
 
 
 def _run_build_script(
-        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
+        crate:str, version:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
 ):
     """Run compiled build script before building package."""
-    compilation, tools = _compile_build_script(name, crate_fg, root, deps, edition, out_dir, features, compile_env)
+    compilation, tools = _compile_build_script(crate, version, crate_fg, root, deps, edition, out_dir, features, compile_env)
 
     run_env['RUST_BACKTRACE'] = 'full'
     return build_rule(
-        name=name,
+        name=f'{crate}-{version}',
         tag = 'run_build_script',
         srcs = [compilation + '|build_bin'],
         cmd = ' && '.join([
@@ -343,14 +347,14 @@ def _run_build_script(
         pass_env = ['TOOLS_RUSTC'],
         env = run_env,
         tools = tools,
-        building_description = f'Running build script {name}...',
+        building_description = f'Running build script {crate}-{version}...',
     )
 
 
 def _collect_build_script_output(
-        name:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
+        crate:str, version:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
 ):
-    build_exec = _run_build_script(name, crate_fg, root, deps, edition, out_dir, features, host, compile_env, run_env)
+    build_exec = _run_build_script(crate, version, crate_fg, root, deps, edition, out_dir, features, host, compile_env, run_env)
     cmd = """
     output=""
     while IFS= read -r line; do
@@ -360,7 +364,7 @@ def _collect_build_script_output(
         fi
     done < $SRCS/output"""
     return build_rule(
-        name=name,
+        name=f'{crate}-{version}',
         tag='collect_build_output',
         srcs=[build_exec + '|output'],
         cmd = ' && '.join([
@@ -371,21 +375,21 @@ def _collect_build_script_output(
             'formatted_output': [f'{out_dir}/out/formatted_output'],
         },
         deps = [build_exec],
-        building_description = f'Collecting build script outputs for {name}...',
+        building_description = f'Collecting build script outputs for {crate}-{version}...',
     )
         
     
-def _construct_labels(name:str, crate:str, crate_type:str, out_dir:str):
+def _construct_labels(crate_name:str, crate:str, version:str, crate_type:str, out_dir:str):
     """Returns the labels for a rust_crate based on the crate_type"""
     labels = []
     pkg = package_name()
     if crate_type in ['lib', 'rlib']:
-        crate_label = f'rust_crate_path:{crate}:{pkg}/{out_dir}/lib{name}.rlib'
-        md_label = f'rust_md_path:{crate}:{pkg}/{out_dir}/lib{name}.rmeta'
+        crate_label = f'rust_crate_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.rlib'
+        md_label = f'rust_md_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.rmeta'
         labels.extend([crate_label, md_label])
     elif crate_type in ['proc-macro']:
-        crate_label = f'rust_crate_path:{crate}:{pkg}/{out_dir}/lib{name}.so'
-        md_label = f'rust_md_path:{crate}:{pkg}/{out_dir}/lib{name}.so'
+        crate_label = f'rust_crate_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.so'
+        md_label = f'rust_md_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.so'
         labels.extend([crate_label, md_label])
     else:
         fail(f'Unsupported labels for crate type: {crate_type}')
@@ -393,8 +397,8 @@ def _construct_labels(name:str, crate:str, crate_type:str, out_dir:str):
     
     
 def _collect_extern_paths(
-        base:str,
         crate_name:str,
+        version:str,
         edition:str,
         src_root:str,
         crate_type:str,
@@ -408,16 +412,16 @@ def _collect_extern_paths(
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
     def extern_flags(dep, labels, rename=None):
+        """Filter out transitive deps. Rename if required"""
         externs = []
         for label in labels:
             flag = label.split(':')
-            crate = flag[0].replace('-', '_')
-            path = flag[1]
-            if crate == dep[1:]:
-                if rename:
-                    externs.append(f'--extern {rename}={path}')
-                else:
-                    externs.append(f'--extern {crate}={path}')
+            dep_crate = flag[0].replace('-', '_')
+            dep_path = flag[1]
+            if rename and (rename == dep_crate or dep[1:] == dep_crate):
+                externs.append(f'--extern {rename}={dep_path}')
+            elif not rename and dep[1:] == dep_crate:
+                externs.append(f'--extern {dep_crate}={dep_path}')
         return externs
             
     def collect_extern_paths(name):
@@ -439,8 +443,8 @@ def _collect_extern_paths(
             fail(f'Unknown dep type {deps}')
         if externs:
             cmds, _ = _rustc_crate_cmds(
-                name=base,
                 crate_name=crate_name,
+                version=version,
                 edition=edition,
                 src_root=src_root,
                 err_format='human',

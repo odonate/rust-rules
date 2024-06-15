@@ -7,12 +7,13 @@ rust_toolchain(
     visibility = ["PUBLIC"],
 )
 
-rust_toolchain(
-    name = "toolchain_nightly",
-    hashes = ["af79758278cfe385ab0d4520f2c64f4ae7f9c7c6"],
-    version = "nightly",
-    visibility = ["PUBLIC"],
-)
+# rust_toolchain(
+#     name = "toolchain_nightly",
+#     # The hash changes all the time.
+#     hashes = ["af79758278cfe385ab0d4520f2c64f4ae7f9c7c6"],
+#     version = "nightly",
+#     visibility = ["PUBLIC"],
+# )
 
 #### Used by examples/rustc_guessing_game ####
 rust_crate(
@@ -80,7 +81,7 @@ rust_crate(
     crate="rand",
     version="0.8.5",
     edition="2018",
-    features=["alloc", "default", "getrandom", "libc", "rand_chacha", "std", "std_rng"],
+    features=["alloc", "default", "getrandom", "libc", "rand_chacha", "small_rng", "std", "std_rng"],
     deps=[
         ":libc",
         ":rand_chacha",
@@ -226,15 +227,15 @@ rust_crate(
     features = ["raw"],
 )
 
-# rust_crate(
-#     name = "hashbrown",
-#     crate = "hashbrown",
-#     version = "0.12.3",
-#     edition = "2021",
-#     features = [
-#         "raw",
-#     ],
-# )
+rust_crate(
+    name = "hashbrown.0.12.3",
+    crate = "hashbrown",
+    version = "0.12.3",
+    edition = "2021",
+    features = [
+        "raw",
+    ],
+)
 
 rust_crate(
     name = "equivalent",
@@ -242,17 +243,6 @@ rust_crate(
     edition = "2015",
     version = "1.0.1",
 )
-
-# rust_crate(
-#     name = "indexmap_1_9_3",
-#     crate = "indexmap",
-#     version = "1.9.3",
-#     edition = "2021",
-#     build_root = "build.rs",
-#     deps = [
-#         ":autocfg",
-#     ],
-# )
 
 rust_crate(
     name = "indexmap",
@@ -271,6 +261,33 @@ rust_crate(
         "clippy::style",
     ],
 )
+
+# https://github.com/indexmap-rs/indexmap/issues/289
+rust_crate(
+    name = "indexmap.1.9.3",
+    crate = "indexmap",
+    version = "1.9.3",
+    edition = "2021",
+    features = [
+        #"default",
+        #"std",
+    ],
+    deps = {
+        "hashbrown": ":hashbrown.0.12.3",
+    },
+    build_root = "build.rs",
+    build_deps = [
+        ":autocfg",
+    ],
+)
+
+rust_crate(
+    name = "indexmap.1.2.0",
+    crate = "indexmap",
+    version = "1.2.0",
+    edition = "2015",
+)
+
 
 rust_crate(
     name = "anyhow",
@@ -528,15 +545,15 @@ rust_crate(
     ],
 )
 
-# rust_crate(
-#     name = "bitflags",
-#     crate = "bitflags",
-#     version = "1.3.2",
-#     edition = "2018",
-#     features = [
-#         "default",
-#     ],
-# )
+rust_crate(
+    name = "bitflags.1.3.2",
+    crate = "bitflags",
+    version = "1.3.2",
+    edition = "2018",
+    features = [
+        "default",
+    ],
+)
 
 rust_crate(
     name = "httparse",
@@ -777,17 +794,17 @@ rust_crate(
     edition = "2015",
 )
 
-# rust_crate(
-#     name = "tempfile",
-#     crate = "tempfile",
-#     version = "3.10.1",
-#     edition = "2021",
-#     deps = [
-#         ":cfg_if",
-#         ":fastrand",
-#         ":rustix",
-#     ],
-# )
+rust_crate(
+    name = "tempfile",
+    crate = "tempfile",
+    version = "3.10.1",
+    edition = "2021",
+    deps = [
+        ":cfg_if",
+        ":fastrand",
+        ":rustix",
+    ],
+)
 
 rust_crate(
     name = "serde",
@@ -826,12 +843,12 @@ rust_crate(
     ],
 )
 
-# rust_crate(
-#     name = "sync_wrapper",
-#     crate = "sync-wrapper",
-#     version = "0.1.2",
-#     edition = "2018",
-# )
+rust_crate(
+    name = "sync_wrapper",
+    crate = "sync_wrapper",
+    version = "0.1.2",
+    edition = "2018",
+)
 
 rust_crate(
     name = "memchr",
@@ -995,13 +1012,372 @@ rust_crate(
     ],
 )
 
-# rust_crate(
-#     name = "axum",
-#     crate = "axum",
-#     version = "0.6.20",
-#     edition = "2021",
-#     build_root = "build.rs",
-#     build_deps = [
-#         ":rustversion",
-#     ],
-# )
+rust_crate(
+    name = "async_stream",
+    crate = "async-stream",
+    version = "0.3.5",
+    edition = "2018",
+    crate_type = "lib",
+    deps = [
+        ":async_stream_impl",
+        ":futures_core",
+        ":pin_project_lite",
+    ],
+)
+
+rust_crate(
+    name = "async_stream_impl",
+    crate = "async-stream-impl",
+    version = "0.3.5",
+    edition = "2018",
+    crate_type = "proc-macro",
+    deps = [
+        ":proc_macro2",
+        ":quote",
+        ":syn",
+    ],
+)
+
+rust_crate(
+    name = "tokio",
+    crate = "tokio",
+    version = "1.38.0",
+    edition = "2021",
+    crate_type = "lib",
+    features = [
+        "bytes", "default", "fs", "full", "io-std", "io-util", "libc", "macros", "mio",
+        "net", "num_cpus", "parking_lot", "process", "rt", "rt-multi-thread", "signal",
+        "signal-hook-registry", "socket2", "sync", "time", "tokio-macros",
+    ],
+    deps = [
+        ":bytes",
+        ":libc",
+        ":mio",
+        ":num_cpus",
+        ":parking_lot",
+        ":pin_project_lite",
+        ":signal_hook_registry",
+        ":socket2",
+        ":tokio_macros",
+    ],
+)
+
+rust_crate(
+    name = "pin_project",
+    crate = "pin-project",
+    version = "1.1.5",
+    edition = "2021",
+    crate_type = "lib",
+    warns = [
+        "unreachable_pub", "clippy::undocumented_unsafe_blocks", "clippy::transmute_undefined_repr",
+        "clippy::trailing_empty_array", "single_use_lifetimes", "rust_2018_idioms", "clippy::pedantic",
+        "non_ascii_idents", "clippy::inline_asm_x86_att_syntax", "improper_ctypes_definitions",
+        "improper_ctypes", "clippy::default_union_representation", "clippy::as_ptr_cast_mut",
+        "clippy::all",
+    ],
+    allows = [
+        "clippy::type_complexity", "clippy::too_many_lines", "clippy::too_many_arguments",
+        "clippy::struct_field_names", "clippy::struct_excessive_bools", "clippy::single_match_else",
+        "clippy::single_match", "clippy::similar_names", "clippy::module_name_repetitions",
+        "clippy::missing_errors_doc", "clippy::manual_range_contains", "clippy::manual_assert",
+        "clippy::float_cmp", "clippy::doc_markdown", "clippy::declare_interior_mutable_const",
+        "clippy::borrow_as_ptr", "clippy::bool_assert_comparison",
+    ],
+    deps = [
+        ":pin_project_internal",
+    ],
+)
+
+rust_crate(
+    name = "tracing",
+    crate = "tracing",
+    version = "0.1.40",
+    edition = "2018",
+    crate_type = "lib",
+    features = [
+        "attributes", "default", "std", "tracing-attributes",
+    ],
+    deps = [
+        ":pin_project_lite",
+        ":tracing_attributes",
+        ":tracing_core",
+    ],
+)
+
+rust_crate(
+    name = "prost",
+    crate = "prost",
+    version = "0.12.6",
+    edition = "2021",
+    crate_type = "lib",
+    features = [
+        "derive", "prost-derive",
+    ],
+    deps = [
+        ":bytes",
+        ":prost_derive",
+    ],
+)
+
+rust_crate(
+    name = "prost_types",
+    crate = "prost-types",
+    version = "0.12.6",
+    edition = "2021",
+    crate_type = "lib",
+    deps = [
+        ":prost",
+    ],
+)
+
+rust_crate(
+    name = "prost_build",
+    crate = "prost-build",
+    version = "0.12.6",
+    edition = "2021",
+    crate_type = "lib",
+    features = [
+        "default", "format",
+    ],
+    deps = [
+        ":bytes",
+        ":heck",
+        ":itertools",
+        ":log",
+        ":multimap",
+        ":once_cell",
+        ":petgraph",
+        ":prettyplease",
+        ":prost",
+        ":prost_types",
+        ":regex",
+        ":syn",
+        ":tempfile",
+    ],
+)
+
+rust_crate(
+    name = "tonic_build",
+    crate = "tonic-build",
+    version = "0.11.0",
+    edition = "2021",
+    crate_type = "lib",
+    features = [
+        "default", "prost", "prost-build", "transport",
+    ],
+    deps = [
+        ":prettyplease",
+        ":proc_macro2",
+        ":prost_build",
+        ":quote",
+        ":syn",
+    ],
+)
+
+rust_crate(
+    name = "tokio_util",
+    crate = "tokio-util",
+    version = "0.7.11",
+    edition = "2021",
+    crate_type = "lib",
+    features = [
+        "codec", "default", "io",
+    ],
+    deps = [
+        ":bytes",
+        ":futures_core",
+        ":futures_sink",
+        ":pin_project_lite",
+        ":tokio",
+    ],
+)
+
+rust_crate(
+    name = "tokio_io_timeout",
+    crate = "tokio-io-timeout",
+    version = "1.2.0",
+    edition = "2018",
+    crate_type = "lib",
+    deps = [
+        ":pin_project_lite",
+        ":tokio",
+    ],
+)
+
+rust_crate(
+    name = "tokio_stream",
+    crate = "tokio-stream",
+    version = "0.1.15",
+    edition = "2021",
+    crate_type = "lib",
+    features = [
+        "default", "time",
+    ],
+    deps = [
+        ":futures_core",
+        ":pin_project_lite",
+        ":tokio",
+    ],
+)
+
+rust_crate(
+    name = "h2",
+    crate = "h2",
+    version = "0.3.26",
+    edition = "2018",
+    crate_type = "lib",
+    deps = [
+        ":bytes",
+        ":fnv",
+        ":futures_core",
+        ":futures_sink",
+        ":futures_util",
+        ":http",
+        ":indexmap",
+        ":slab",
+        ":tokio",
+        ":tokio_util",
+        ":tracing",
+    ],
+)
+
+rust_crate(
+    name = "tower",
+    crate = "tower",
+    version = "0.4.13",
+    edition = "2018",
+    crate_type = "lib",
+    features = [
+        "__common", "balance", "buffer", "discover", "futures-core", "futures-util", "indexmap",
+        "limit", "load", "make", "pin-project", "pin-project-lite", "rand", "ready-cache", "slab",
+        "timeout", "tokio", "tokio-util", "tracing", "util",
+    ],
+    deps = {
+        "futures_core": ":futures_core",
+        "futures_util": ":futures_util",
+        # https://github.com/indexmap-rs/indexmap/issues/289
+        #"indexmap": ":indexmap.1.9.3",
+        "indexmap": ":indexmap.1.2.0",
+        "pin_project": ":pin_project",
+        "pin_project_lite": ":pin_project_lite",
+        "rand": ":rand",
+        "slab": ":slab",
+        "tokio": ":tokio",
+        "tokio_util": ":tokio_util",
+        "tower_layer": ":tower_layer",
+        "tower_service": ":tower_service",
+        "tracing": ":tracing",
+    },
+)
+
+rust_crate(
+    name = "hyper",
+    crate = "hyper",
+    version = "0.14.29",
+    edition = "2018",
+    crate_type = "lib",
+    features = [
+        "client", "default", "full", "h2", "http1", "http2", "runtime", "server", "socket2",
+        "stream", "tcp",
+    ],
+    deps = [
+        ":bytes",
+        ":futures_channel",
+        ":futures_core",
+        ":futures_util",
+        ":h2",
+        ":http",
+        ":http_body",
+        ":httparse",
+        ":httpdate",
+        ":itoa",
+        ":pin_project_lite",
+        ":socket2",
+        ":tokio",
+        ":tower_service",
+        ":tracing",
+        ":want",
+    ],
+)
+
+rust_crate(
+    name = "axum",
+    crate = "axum",
+    version = "0.6.20",
+    edition = "2021",
+    crate_type = "lib",
+    deps = {
+        "async_trait": ":async_trait",
+        "axum_core": ":axum_core",
+        "bitflags": ":bitflags.1.3.2",
+        "bytes": ":bytes",
+        "futures_util": ":futures_util",
+        "http": ":http",
+        "http_body": ":http_body",
+        "hyper": ":hyper",
+        "itoa": ":itoa",
+        "matchit": ":matchit",
+        "memchr": ":memchr",
+        "mime": ":mime",
+        "percent_encoding": ":percent_encoding",
+        "pin_project_lite": ":pin_project_lite",
+        "serde": ":serde",
+        "sync_wrapper": ":sync_wrapper",
+        "tower": ":tower",
+        "tower_layer": ":tower_layer",
+        "tower_service": ":tower_service",
+    },
+    build_root = "build.rs",
+    build_deps = [
+        ":rustversion",
+    ],
+)
+
+rust_crate(
+    name = "hyper_timeout",
+    crate = "hyper-timeout",
+    version = "0.4.1",
+    edition = "2018",
+    crate_type = "lib",
+    deps = [
+        ":hyper",
+        ":pin_project_lite",
+        ":tokio",
+        ":tokio_io_timeout",
+    ],
+)
+
+rust_crate(
+    name = "tonic",
+    crate = "tonic",
+    version = "0.11.0",
+    edition = "2021",
+    crate_type = "lib",
+    features = [
+        "channel", "codegen", "default", "prost", "transport",
+    ],
+    deps = [
+        ":async_stream",
+        ":async_trait",
+        ":axum",
+        ":base64",
+        ":bytes",
+        ":h2",
+        ":http",
+        ":http_body",
+        ":hyper",
+        ":hyper_timeout",
+        ":percent_encoding",
+        ":pin_project",
+        ":prost",
+        ":tokio",
+        ":tokio_stream",
+        ":tower",
+        ":tower_layer",
+        ":tower_service",
+        ":tracing",
+    ],
+    compile_env = {
+        "CARGO_PKG_VERSION": "0.1.0",
+    },
+)
