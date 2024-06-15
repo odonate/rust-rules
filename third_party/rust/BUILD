@@ -872,46 +872,46 @@ rust_crate(
     ],
 )
 
-# rust_crate(
-#     name = "tokio_macros",
-#     crate = "tokio-macros",
-#     version = "2.3.0",
-#     edition = "2021",
-#     crate_type = "proc-macro",
-#     deps = [
-#         ":proc_macro2",
-#         ":quote",
-#         ":syn",
-#     ],
-# )
+rust_crate(
+    name = "tokio_macros",
+    crate = "tokio-macros",
+    version = "2.3.0",
+    edition = "2021",
+    crate_type = "proc-macro",
+    deps = [
+        ":proc_macro2",
+        ":quote",
+        ":syn",
+    ],
+)
 
-# rust_crate(
-#     name = "prost_derive",
-#     crate = "prost-derive",
-#     version = "0.12.6",
-#     edition = "2021",
-#     crate_type = "proc-macro",
-#     deps = [
-#         ":anyhow",
-#         ":itertools",
-#         ":proc_macro2",
-#         ":quote",
-#         ":syn",
-#     ],
-# )
+rust_crate(
+    name = "prost_derive",
+    crate = "prost-derive",
+    version = "0.12.6",
+    edition = "2021",
+    crate_type = "proc-macro",
+    deps = [
+        ":anyhow",
+        ":itertools",
+        ":proc_macro2",
+        ":quote",
+        ":syn",
+    ],
+)
 
-# rust_crate(
-#     name = "tracing_attributes",
-#     crate = "tracing-attributes",
-#     version = "0.1.27",
-#     edition = "2018",
-#     crate_type = "proc-macro",
-#     deps = [
-#         ":proc_macro2",
-#         ":quote",
-#         ":syn",
-#     ],
-# )
+rust_crate(
+    name = "tracing_attributes",
+    crate = "tracing-attributes",
+    version = "0.1.27",
+    edition = "2018",
+    crate_type = "proc-macro",
+    deps = [
+        ":proc_macro2",
+        ":quote",
+        ":syn",
+    ],
+)
 
 # rust_crate(
 #     name = "pin_project_internal",
@@ -961,18 +961,18 @@ rust_crate(
 #     ],
 # )
 
-# rust_crate(
-#     name = "async_trait",
-#     crate = "async-trait",
-#     version = "0.1.80",
-#     edition = "2021",
-#     crate_type = "proc-macro",
-#     deps = [
-#         ":proc_macro2",
-#         ":quote",
-#         ":syn",
-#     ],
-# )
+rust_crate(
+    name = "async_trait",
+    crate = "async-trait",
+    version = "0.1.80",
+    edition = "2021",
+    crate_type = "proc-macro",
+    deps = [
+        ":proc_macro2",
+        ":quote",
+        ":syn",
+    ],
+)
 
 # rust_crate(
 #     name = "axum_core",
