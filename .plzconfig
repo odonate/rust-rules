@@ -6,9 +6,10 @@ path = /opt/rust-rules/toolchain/1.0/bin/:/bin:/usr/bin:/usr/local/bin
 timeout = 2000
 
 [Plugin "rust"]
-RustcTool = //third_party/rust:toolchain_rustc
+Target = //build_defs:rust
+Rustc = //third_party/rust:toolchain_rustc
 StdLib = //third_party/rust:toolchain_stdlib
-TargetDir = //third_party/rust:toolchain_target
+RepoRoot = //third_party/rust:toolchain_target
 
 [Parse]
 preloadsubincludes = ///proto//build_defs:proto
