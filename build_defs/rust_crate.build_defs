@@ -412,6 +412,8 @@ def _collect_extern_paths(
         label_format = 'rust_md_path:'
         if crate_type in ["bin", "proc-macro"]:
             label_format = 'rust_crate_path:'
+            if crate_type == 'proc-macro':
+                externs.append('--extern proc_macro')
         if isinstance(deps, dict):
             for rename, dep in deps.items():
                 labels = get_labels(dep, label_format)
