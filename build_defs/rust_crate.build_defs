@@ -112,7 +112,7 @@ def _rustc_crate_cmds(
         cmd.extend([f'-L {path}' for path in search_path])
     elif isinstance(search_path, dict):
         cmd.extend([f'-L {k}={v}' for k,v in sorted(search_path.items())])
-    cmd.append(f'-L $(cat $TOOLS_REPO_ROOT)/plz-out/gen/third_party/rust/{out_dir}')
+    cmd.append(f'-L third_party/rust/{out_dir}')
     if externs:
         cmd.extend([extern for extern in externs])
     if cap_lints:
@@ -128,7 +128,6 @@ def _rustc_crate_cmds(
     }, {
         'rustc': [CONFIG.RUST.RUSTC],
         'stdlib': [CONFIG.RUST.STDLIB],
-        'repo_root': [CONFIG.RUST.REPO_ROOT],
     }
 
 

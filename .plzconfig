@@ -25,10 +25,6 @@ Target = //plugins:shell
 [Plugin "proto"]
 Target = //plugins:proto
 ProtocTool = //third_party/proto:protoc
-;; LanguageDef = ///go_proto//build_defs:go_proto
-
-;; [Plugin "go-proto"]
-;; Target = //plugins:go-proto
 
 [Plugin "python"]
 Target = //plugins:python

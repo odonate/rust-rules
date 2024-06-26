@@ -90,8 +90,8 @@ def _rustc_cmds(
     elif isinstance(search_path, dict):
         cmd.extend([f'-L {k}={v}' for k,v in sorted(search_path.items())])
     pkg = package_name()
-    cmd.append(f'-L $(cat $TOOLS_REPO_ROOT)/plz-out/gen/{pkg}')
-    cmd.append(f'-L $(cat $TOOLS_REPO_ROOT)/plz-out/gen/third_party/rust/{out_dir}')
+    cmd.append(f'-L {pkg}')
+    cmd.append(f'-L third_party/rust/{out_dir}')
     if externs:
         cmd.extend([extern for extern in externs])
     # log.warning(CONFIG.RUST)
@@ -109,7 +109,6 @@ def _rustc_cmds(
         # TODO: why is CONFIG.RUST not set outside third_party?
         'rustc': ["//third_party/rust:toolchain_rustc"],
         'stdlib': ["//third_party/rust:toolchain_stdlib"],
-        'repo_root': ["//third_party/rust:toolchain_target"],
     }
 
 
@@ -373,7 +372,6 @@ def _collect_extern_paths(
             flag = label.split(':')
             dep_crate = flag[0].replace('-', '_')
             dep_path = flag[1]
-            log.warning(f'Label for {dep}: {dep_crate} -> {dep_path}')
             if rename and (rename == dep_crate or dep == dep_crate):
                 externs.append(f'--extern {rename}={dep_path}')
             elif not rename and dep == dep_crate:
