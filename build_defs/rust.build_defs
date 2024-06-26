@@ -91,7 +91,9 @@ def _rustc_cmds(
         cmd.extend([f'-L {k}={v}' for k,v in sorted(search_path.items())])
     pkg = package_name()
     cmd.append(f'-L {pkg}')
+    cmd.append(f'-L $PWD/{pkg}')
     cmd.append(f'-L third_party/rust/{out_dir}')
+    cmd.append(f'-L $PWD/third_party/rust/{out_dir}')
     if externs:
         cmd.extend([extern for extern in externs])
     # log.warning(CONFIG.RUST)
