@@ -1,0 +1,7 @@
+[package]
+name = "cargo_protoc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+protoc-gen-prost = "0.3.1"

@@ -132,9 +132,38 @@ def _rustc_crate_cmds(
     }
 
 
+def rust_crate_download(
+        name:str, crate:str, version:str,
+):
+    base = f'{crate}-{version}'
+    # Download the crate.
+    url = f'https://crates.io/api/v1/crates/{crate}/{version}/download'
+    download = remote_file(
+        name=f'{base}_download',
+        url=url,
+        out=f'{base}_download',
+    )
+    # Extract the tarball .cargo file.
+    extraction = build_rule(
+        name=base,
+        tag="extraction",
+        srcs=[download],
+        outs = [f'{base}'],
+        cmd = ' && '.join([
+            'tar -xvzf $SRCS',
+        ]),
+        building_description = f'Extracting {base}...',
+    )
+    return filegroup(
+        name = name,
+        srcs = [extraction],
+        deps = [extraction],
+    )
+
+
 def rust_crate(
         # Crate params.
-        name:str, crate:str, version:str, edition:str='2015', src_root:str='src/lib.rs',
+        name:str, crate:str, version:str='', download:str='', edition:str='2015', src_root:str='src/lib.rs',
         features:list=None, deps:list|dict=None, crate_type:str='lib', out_dir:str='target/debug/deps',
         warns:list=None, allows:list=None, compile_env:dict=None,     
         # Build params.
@@ -145,32 +174,14 @@ def rust_crate(
         visibility:list=["PUBLIC"],
 ):
     base = f'{crate}-{version}'
-    # Download the crate.
-    url = f'https://crates.io/api/v1/crates/{crate}/{version}/download'
-    download_rule = remote_file(
-        name=f'{base}_download',
-        url=url,
-        out=f'{base}_download',
-    )
-    # Extract the tarball .cargo file.
-    extract_rule = build_rule(
-        name=base,
-        tag="extraction",
-        srcs=[download_rule],
-        outs = [f'{base}'],
-        cmd = ' && '.join([
-            'tar -xvzf $SRCS',
-        ]),
-        building_description = f'Extracting {base}...',
-    )
+    if not download:
+        download = rust_crate_download(
+            name = f'{name}_dl',
+            crate = crate,
+            version = version
+        )
     extra_deps = []
-    crate_fg = filegroup(
-        name = base,
-        tag = 'crate',
-        srcs = [extract_rule],
-        deps = [extract_rule],
-    )
-    extra_deps.append(crate_fg)
+    extra_deps.append(download)
     
     # Run any required build scripts.
     if build_root:
@@ -191,14 +202,14 @@ def rust_crate(
         host = f'{arch}-{os}'
         formatted_base = base.replace('-', '_').replace('.', '_')
         build_out_dir = f'{build_out_dir}/{formatted_base}'
-        build_out = _collect_build_script_output(crate, version, crate_fg, build_root, build_deps, edition, build_out_dir, features, host, build_compile_env, build_run_env)
+        build_out = _collect_build_script_output(crate, version, download, build_root, build_deps, edition, build_out_dir, features, host, build_compile_env, build_run_env)
         extra_deps.append(build_out)
     else:
         build_out = None
 
     return _compile_rust_crate(
         name=name,
-        crate_fg=crate_fg,
+        download=download,
         crate=crate,
         version=version,
         edition=edition,
@@ -216,7 +227,7 @@ def rust_crate(
     )
 
 def _compile_rust_crate(
-        name:str, crate_fg:str, crate:str, version:str, edition:str, src_root:str, features:list,
+        name:str, download:str, crate:str, version:str, edition:str, src_root:str, features:list,
         deps:list|dict, crate_type:str, out_dir:str, build_out:str, extra_deps:list, warns:list,
         allows:list, compile_env:dict, visibility:list,
 ):
@@ -248,12 +259,13 @@ def _compile_rust_crate(
     major, minor, _ = version.split('.')
     return build_rule(
         name = name,
-        srcs = [crate_fg],
+        srcs = [download],
         outs = {
             'crate': [f'{out_dir}/lib{crate_name}-{version}.rlib' if crate_type in ['lib', 'rlib'] else None],
             'so': [f'{out_dir}/lib{crate_name}-{version}.so' if crate_type in ['proc-macro'] else None],
-            'md': [f'{out_dir}/lib{crate_name}-{version}.rmeta'],
-            'dep_info': [f'{out_dir}/{crate_name}-{major}.{minor}.d'],
+            'md': [f'{out_dir}/lib{crate_name}-{version}.rmeta' if crate_type in ['lib', 'rlib', 'proc-macro'] else None],
+            'dep_info': [f'{out_dir}/{crate_name}-{major}.{minor}.d' if crate_type in ['lib', 'rlib', 'proc-macro'] else None],
+            'bin': [f'{out_dir}/{crate_name}-{major}.{minor}' if crate_type in ['bin'] else None],
         },
         cmd = cmd,
         deps = crate_deps + extra_deps if deps else extra_deps,
@@ -261,6 +273,7 @@ def _compile_rust_crate(
         requires = ['rust'],
         labels=_construct_labels(crate_name, crate, version, crate_type, out_dir),
         tools = tools,
+        binary = True if crate_type == 'bin' else False,
         pre_build=_collect_extern_paths(
             crate_name=crate_name,
             version=version,
@@ -280,7 +293,7 @@ def _compile_rust_crate(
     )
     
 def _compile_build_script(
-        crate:str, version:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, compile_env:dict={},
+        crate:str, version:str, download:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, compile_env:dict={},
 ):
     """Compiles the build script before execution"""
     crate_name = f'build_script_build'
@@ -299,7 +312,7 @@ def _compile_build_script(
     return build_rule(
         name = f'{crate}-{version}',
         tag = 'compile_build_script',
-        srcs = [crate_fg],
+        srcs = [download],
         outs = {
             'build_bin': [f'{out_dir}/{crate_name}-{major}.{minor}'],
             'dep_info': [f'{out_dir}/{crate_name}-{major}.{minor}.d']
@@ -324,10 +337,10 @@ def _compile_build_script(
 
 
 def _run_build_script(
-        crate:str, version:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
+        crate:str, version:str, download:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
 ):
     """Run compiled build script before building package."""
-    compilation, tools = _compile_build_script(crate, version, crate_fg, root, deps, edition, out_dir, features, compile_env)
+    compilation, tools = _compile_build_script(crate, version, download, root, deps, edition, out_dir, features, compile_env)
 
     run_env['RUST_BACKTRACE'] = 'full'
     return build_rule(
@@ -352,9 +365,9 @@ def _run_build_script(
 
 
 def _collect_build_script_output(
-        crate:str, version:str, crate_fg:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
+        crate:str, version:str, download:str, root:str, deps:list, edition:str, out_dir:str, features:list=None, host:str, compile_env:dict={}, run_env:dict={}
 ):
-    build_exec = _run_build_script(crate, version, crate_fg, root, deps, edition, out_dir, features, host, compile_env, run_env)
+    build_exec = _run_build_script(crate, version, download, root, deps, edition, out_dir, features, host, compile_env, run_env)
     cmd = """
     output=""
     while IFS= read -r line; do
@@ -391,6 +404,8 @@ def _construct_labels(crate_name:str, crate:str, version:str, crate_type:str, ou
         crate_label = f'rust_crate_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.so'
         md_label = f'rust_md_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.so'
         labels.extend([crate_label, md_label])
+    elif crate_type in ['bin']:
+        pass
     else:
         fail(f'Unsupported labels for crate type: {crate_type}')
     return labels

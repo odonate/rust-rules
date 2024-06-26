@@ -1111,7 +1111,7 @@ rust_crate(
     edition = "2021",
     crate_type = "lib",
     features = [
-        "derive", "prost-derive",
+        "derive", "prost-derive", "std",
     ],
     deps = [
         ":bytes",
@@ -1377,6 +1377,55 @@ rust_crate(
         ":tower_service",
         ":tracing",
     ],
+    compile_env = {
+        "CARGO_PKG_VERSION": "0.1.0",
+    },
+)
+
+#### rust-proto examples ####
+
+rust_crate(
+    name = "once_cell.1.10.0",
+    crate = "once_cell",
+    edition = "2021",
+    version = "1.10.0",
+)
+
+rust_crate_download(
+    name = "protoc_gen_prost_dl",
+    crate = "protoc-gen-prost",
+    version = "0.3.1",
+)
+
+rust_crate(
+    name = "protoc_gen_prost_lib",
+    crate = "protoc-gen-prost",
+    edition = "2021",
+    download = ":protoc_gen_prost_dl",
+    version = "0.3.1",
+    features = [],
+    deps = {
+        "once_cell": ":once_cell",
+        "prost": ":prost",
+        "prost_build": ":prost_build",
+        "prost_types": ":prost_types",
+        "regex": ":regex",
+    },
+)
+
+rust_crate(
+    name = "protoc_gen_prost",
+    crate = "protoc-gen-prost",
+    edition = "2021",
+    download = ":protoc_gen_prost_dl",
+    version = "0.3.1",
+    features = [],
+    crate_type = 'bin',
+    src_root = 'src/main.rs',
+    deps = {
+        "prost": ":prost",
+        "protoc_gen_prost": ":protoc_gen_prost_lib",
+    },
     compile_env = {
         "CARGO_PKG_VERSION": "0.1.0",
     },
