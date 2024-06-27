@@ -114,7 +114,7 @@ def _rustc_crate_cmds(
         cmd.extend([f'-L {k}={v}' for k,v in sorted(search_path.items())])
     cmd.extend([
         f'-L third_party/rust/{out_dir}',
-        f'-L $(git rev-parse --show-cdup)/plz-out/gen/third-party/rust/{out_dir}',
+        f'-L $(git rev-parse --show-cdup)/plz-out/gen/third_party/rust/{out_dir}',
     ])
     if externs:
         cmd.extend([extern for extern in externs])
