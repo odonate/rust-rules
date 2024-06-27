@@ -11,6 +11,7 @@ def _rustc_cmds(
         features:list=None,
         out_dir='target/debug/deps',
         search_path:str|list|dict=None,
+        deps:list=None,
         externs:list=None,
         build_out:str=None,
         test:bool=False,
@@ -90,10 +91,11 @@ def _rustc_cmds(
     elif isinstance(search_path, dict):
         cmd.extend([f'-L {k}={v}' for k,v in sorted(search_path.items())])
     pkg = package_name()
-    cmd.append(f'-L {pkg}')
-    cmd.append(f'-L $PWD/{pkg}')
-    cmd.append(f'-L third_party/rust/{out_dir}')
-    cmd.append(f'-L $PWD/third_party/rust/{out_dir}')
+    cmd.extend([
+        f'-L {pkg}',
+        f'-L third_party/rust/{out_dir}',
+        f'-L $(git rev-parse --show-cdup)/plz-out/gen/third-party/rust/{out_dir}',
+    ])
     if externs:
         cmd.extend([extern for extern in externs])
     # log.warning(CONFIG.RUST)
@@ -138,6 +140,7 @@ def rust_library(name:str, root:str, modules:list=None, deps:list=[], edition:st
     cmd, tools = _rustc_cmds(
         crate_name=name,
         edition=edition,
+        deps=deps,
     )
     build_rule(
         name = name,
@@ -196,6 +199,7 @@ def rust_binary(name:str, main:str, deps:list=None, edition:str='2021', features
         crate_name=name,
         edition=edition,
         crate_type='bin',
+        deps=deps,
     )
     build_rule(
         name = name,
@@ -248,6 +252,7 @@ def rust_test(name:str, root:str, modules:list=None, deps:list=[], edition:str="
         crate_name=f'{name}_test',
         edition=edition,
         crate_type='bin',
+        deps=deps,
         test=True,
     )
     build_rule(
@@ -285,6 +290,7 @@ def _compile_build_script(
         crate_type='bin',
         emit=['dep-info', 'link'], # Omits metadata.
         features=features,
+        deps=deps,
     )
     return build_rule(
         name = name,
@@ -405,6 +411,7 @@ def _collect_extern_paths(
                 err_format='human',
                 crate_type=crate_type,
                 externs=externs,
+                deps=deps,
                 compile_env=compile_env,
                 test=test,
             )
