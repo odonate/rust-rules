@@ -3,7 +3,7 @@ def _rustc_cmds(
         edition:str="2021",
         err_format:str='human',
         crate_type:str='lib',
-        emit:str|list=['dep-info', 'link'],
+        emit:str|list=['dep-info', 'link', 'metadata'],
         codegen:dict={
             'embed-bitcode': 'no',
             'incremental': 'third_party/rust/target/debug/incremental',
@@ -98,7 +98,6 @@ def _rustc_cmds(
     ])
     if externs:
         cmd.extend([extern for extern in externs])
-    # log.warning(CONFIG.RUST)
     # if CONFIG.RUST.STDLIB:
     cmd.append('-L $TOOLS_STDLIB')
     if build_out:
@@ -132,10 +131,10 @@ def rust_library(name:str, root:str, modules:list=None, deps:list=[], edition:st
     """
     if modules:
         filegroup(
-            name=f'{name}_mods',
+            name=f'_{name}_mods',
             srcs=modules,
         )
-        deps.append(f':{name}_mods')
+        deps.append(f':_{name}_mods')
     
     cmd, tools = _rustc_cmds(
         crate_name=name,
@@ -145,11 +144,15 @@ def rust_library(name:str, root:str, modules:list=None, deps:list=[], edition:st
     build_rule(
         name = name,
         srcs = [root],
-        outs = [f'lib{name}.rlib'],
+        outs = {
+            'rlib': [f'lib{name}.rlib'],
+            'rmeta': [f'lib{name}.rmeta'],
+        },
         cmd = cmd,
         deps = deps,
         visibility = visibility,
         requires = ['rust'],
+        labels=_construct_labels(name, 'lib'),
         tools = tools,
         pre_build=_collect_extern_paths(
             crate_name=name,
@@ -374,7 +377,7 @@ def _collect_extern_paths(
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
     def extern_flags(full_dep, labels, rename=None):
-        dep = full_dep.split(':')[1]
+        dep = canonicalise(full_dep).split(':')[1]
         externs = []
         for label in labels:
             flag = label.split(':')
@@ -398,7 +401,6 @@ def _collect_extern_paths(
                 labels = get_labels(dep, label_format)
                 externs += extern_flags(dep, labels, rename)
         elif isinstance(deps, list):
-            #split_deps = [ ':' + dep.split(':')[1] for dep in deps ]
             for dep in deps:
                 labels = get_labels(dep, label_format)
                 externs += extern_flags(dep, labels)
@@ -419,3 +421,20 @@ def _collect_extern_paths(
                 set_command(name, k, v)
     return collect_extern_paths
 
+def _construct_labels(crate_name:str, crate_type:str):
+    """Returns the labels for a rust_crate based on the crate_type"""
+    labels = []
+    pkg = package_name()
+    if crate_type in ['lib', 'rlib']:
+        crate_label = f'rust_crate_path:{crate_name}:{pkg}/lib{crate_name}.rlib'
+        md_label = f'rust_md_path:{crate_name}:{pkg}/lib{crate_name}.rmeta'
+        labels.extend([crate_label, md_label])
+    elif crate_type in ['proc-macro']:
+        crate_label = f'rust_crate_path:{crate_name}:{pkg}/lib{crate_name}.so'
+        md_label = f'rust_md_path:{crate_name}:{pkg}/lib{crate_name}.so'
+        labels.extend([crate_label, md_label])
+    elif crate_type in ['bin']:
+        pass
+    else:
+        fail(f'Unsupported labels for crate type: {crate_type}')
+    return labels
