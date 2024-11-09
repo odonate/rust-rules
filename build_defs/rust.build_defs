@@ -133,7 +133,8 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
     if not crate_name:
         crate_name = name
 
-    
+    # All this really does is ensure that rust_proto_libraries build before the pre_build function.
+    # TODO: is there a better way of doing this?
     collect_deps = genrule(
         name = f"_{name}#target_deps",
         cmd = [
@@ -213,7 +214,9 @@ def rust_binary(name:str, main:str, deps:list=None, edition:str='2021', features
         build_out = _collect_build_script_output(name, build_root, build_deps, edition, features, build_compile_env, build_run_env)
     else:
         build_out = None
-
+    
+    # All this really does is ensure that rust_proto_libraries build before the pre_build function.
+    # TODO: is there a better way of doing this?
     collect_deps = genrule(
         name = f"_{name}#target_deps",
         cmd = [
