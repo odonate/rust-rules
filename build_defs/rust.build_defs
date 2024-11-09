@@ -149,8 +149,8 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
         name = name,
         srcs = [root],
         outs = {
-            'rlib': [f'lib{name}.rlib'],
-            'rmeta': [f'lib{name}.rmeta'],
+            'rlib': [f'lib{crate_name}.rlib'],
+            'rmeta': [f'lib{crate_name}.rmeta'],
         },
         cmd = cmd,
         deps = deps,
