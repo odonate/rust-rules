@@ -115,7 +115,7 @@ def _rustc_cmds(
     }
 
 
-def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:list=[], edition:str="2018", features:list=None, build_root:str=None, build_deps:list|dict=None, visibility:list=None):
+def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:list=[], edition:str="2018", features:list=None, build_root:str=None, build_deps:list|dict=None, target_dir:str="target/debug/deps", visibility:list=None):
     """Defines a build rule for a Rust library.
 
     Args:
@@ -132,27 +132,31 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
     """
     if not crate_name:
         crate_name = name
-        
+
+    
+    collect_deps = genrule(
+        name = f"_{name}#target_deps",
+        cmd = [
+            f"mkdir $OUTS",
+            f"mv $SRCS $OUTS",
+        ],
+        srcs = deps,
+        outs = [target_dir],
+    )
     if modules:
         filegroup(
             name=f'_{name}#mods',
             srcs=modules,
+            deps = [collect_deps] if deps else [],
         )
         deps.append(f':_{name}#mods')
-    
+
     cmd, tools = _rustc_cmds(
         crate_name=crate_name,
         edition=edition,
         deps=deps,
+        out_dir=target_dir,
     )
-
-    # Ensure rust_proto_libraries are prebuilt for _collect_extern_paths.
-    prebuild_deps = filegroup(
-        name=f"{name}_deps",
-        tag="prebuild",
-        srcs = deps,
-    )
-
     build_rule(
         name = name,
         srcs = [root],
@@ -161,10 +165,9 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
             'rmeta': [f'lib{crate_name}.rmeta'],
         },
         cmd = cmd,
-        deps = deps + [prebuild_deps],
+        deps = deps,
         visibility = visibility,
         requires = ['rust'],
-        provides = { "rust": ":" + name },
         labels=_construct_labels(crate_name, 'lib'),
         tools = tools,
         pre_build=_collect_extern_paths(
@@ -174,7 +177,6 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
             features=features,
             deps=deps,
         ) if deps else None,
-        needs_transitive_deps=True,
     )
 
 
@@ -219,19 +221,13 @@ def rust_binary(name:str, main:str, deps:list=None, edition:str='2021', features
         deps=deps,
     )
 
-    # Ensure rust_proto_libraries are prebuilt for _collect_extern_paths.
-    prebuild_deps = filegroup(
-        name=f"{name}_deps",
-        tag="prebuild",
-        srcs = deps,
-    )
     build_rule(
         name = name,
         srcs = [main],
         binary = True,
         outs = [name],
         cmd = cmd,
-        deps = deps + [prebuild_deps],
+        deps = deps,
         visibility = visibility,
         requires = ['rust'],
         tools = tools,
@@ -400,6 +396,7 @@ def _collect_extern_paths(
     def extern_flags(full_dep, labels, rename=None):
         dep = canonicalise(full_dep).split(':')[1]
         externs = []
+        pkg = package_name()
         for label in labels:
             flag = label.split(':')
             dep_crate = flag[0].replace('-', '_')

@@ -12,4 +12,5 @@ rust_library(
         "//third_party/rust:prost",
         "//third_party/rust:tonic",
     ],
+    visibility = ["PUBLIC"],
 )
