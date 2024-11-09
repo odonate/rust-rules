@@ -115,13 +115,14 @@ def _rustc_cmds(
     }
 
 
-def rust_library(name:str, root:str, modules:list=None, deps:list=[], edition:str="2018", features:list=None, build_root:str=None, build_deps:list|dict=None, visibility:list=None):
+def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:list=[], edition:str="2018", features:list=None, build_root:str=None, build_deps:list|dict=None, visibility:list=None):
     """Defines a build rule for a Rust library.
 
     Args:
-        name (name): Name of the crate we're creating.
+        name (name): Name of the build rule. If crate_name is blank this is also the name of the crate.
         root (str): Source file that the `rustc` compiler starts from and makes up the root module
                   of the crate. Typically, `src/lib.rs`.
+        crate_name (str): Name of the crate. If this is blank name will be used instead.
         modules (list): Local modules that make up the crate.
         deps (lists): Third-party dependencies of this crate.
         edition (str): Edition of rust to use for this crate. Rust has different editions (2015,
@@ -129,6 +130,9 @@ def rust_library(name:str, root:str, modules:list=None, deps:list=[], edition:st
                   with appropriate features.
         visibility (list): Visibility declaration.
     """
+    if not crate_name:
+        crate_name = name
+        
     if modules:
         filegroup(
             name=f'_{name}_mods',
@@ -137,7 +141,7 @@ def rust_library(name:str, root:str, modules:list=None, deps:list=[], edition:st
         deps.append(f':_{name}_mods')
     
     cmd, tools = _rustc_cmds(
-        crate_name=name,
+        crate_name=crate_name,
         edition=edition,
         deps=deps,
     )
@@ -155,7 +159,7 @@ def rust_library(name:str, root:str, modules:list=None, deps:list=[], edition:st
         labels=_construct_labels(name, 'lib'),
         tools = tools,
         pre_build=_collect_extern_paths(
-            crate_name=name,
+            crate_name=crate_name,
             edition=edition,
             crate_type='lib',
             features=features,
