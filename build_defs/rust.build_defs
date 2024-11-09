@@ -135,16 +135,24 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
         
     if modules:
         filegroup(
-            name=f'_{name}_mods',
+            name=f'_{name}#mods',
             srcs=modules,
         )
-        deps.append(f':_{name}_mods')
+        deps.append(f':_{name}#mods')
     
     cmd, tools = _rustc_cmds(
         crate_name=crate_name,
         edition=edition,
         deps=deps,
     )
+
+    # Ensure rust_proto_libraries are prebuilt for _collect_extern_paths.
+    prebuild_deps = filegroup(
+        name=f"{name}_deps",
+        tag="prebuild",
+        srcs = deps,
+    )
+
     build_rule(
         name = name,
         srcs = [root],
@@ -153,10 +161,11 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
             'rmeta': [f'lib{crate_name}.rmeta'],
         },
         cmd = cmd,
-        deps = deps,
+        deps = deps + [prebuild_deps],
         visibility = visibility,
         requires = ['rust'],
-        labels=_construct_labels(name, 'lib'),
+        provides = { "rust": ":" + name },
+        labels=_construct_labels(crate_name, 'lib'),
         tools = tools,
         pre_build=_collect_extern_paths(
             crate_name=crate_name,
@@ -165,6 +174,7 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
             features=features,
             deps=deps,
         ) if deps else None,
+        needs_transitive_deps=True,
     )
 
 
@@ -208,13 +218,20 @@ def rust_binary(name:str, main:str, deps:list=None, edition:str='2021', features
         crate_type='bin',
         deps=deps,
     )
+
+    # Ensure rust_proto_libraries are prebuilt for _collect_extern_paths.
+    prebuild_deps = filegroup(
+        name=f"{name}_deps",
+        tag="prebuild",
+        srcs = deps,
+    )
     build_rule(
         name = name,
         srcs = [main],
         binary = True,
         outs = [name],
         cmd = cmd,
-        deps = deps,
+        deps = deps + [prebuild_deps],
         visibility = visibility,
         requires = ['rust'],
         tools = tools,

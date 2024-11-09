@@ -1430,3 +1430,49 @@ rust_crate(
         "CARGO_PKG_VERSION": "0.1.0",
     },
 )
+
+
+rust_crate_download(
+    name = "protoc_gen_tonic_dl",
+    crate = "protoc-gen-tonic",
+    version = "0.4.0",
+)
+
+rust_crate(
+    name = "protoc_gen_tonic_lib",
+    crate = "protoc-gen-tonic",
+    download = ":protoc_gen_tonic_dl",
+    edition = "2021",
+    features = [],
+    version = "0.4.0",
+    deps = {
+        "heck": ":heck",
+        "prettyplease": ":prettyplease",
+        "prost_build": ":prost_build",
+        "prost_types": ":prost_types",
+        "prost": ":prost",
+        "protoc_gen_prost": ":protoc_gen_prost_lib",
+        "regex": ":regex",
+        "syn": ":syn",
+        "tonic_build": ":tonic_build",
+    },
+)
+
+rust_crate(
+    name = "protoc_gen_tonic",
+    compile_env = {
+        "CARGO_PKG_VERSION": "0.1.0",
+    },
+    crate = "protoc-gen-tonic",
+    crate_type = "bin",
+    download = ":protoc_gen_tonic_dl",
+    edition = "2021",
+    features = [],
+    src_root = "src/main.rs",
+    version = "0.4.0",
+    deps = {
+        "prost": ":prost",
+        "protoc_gen_prost": ":protoc_gen_prost_lib",
+        "protoc_gen_tonic": ":protoc_gen_tonic_lib",
+    },
+)
