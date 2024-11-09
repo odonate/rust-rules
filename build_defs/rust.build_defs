@@ -180,7 +180,7 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
     )
 
 
-def rust_binary(name:str, main:str, deps:list=None, edition:str='2021', features:list=None, build_root:str=None, build_deps:list|dict=None, build_compile_env:dict=None, build_run_env:dict=None, visibility:list=None, _os:str=None, _arch:str=None):
+def rust_binary(name:str, main:str, deps:list=None, edition:str='2021', features:list=None, build_root:str=None, build_deps:list|dict=None, build_compile_env:dict=None, build_run_env:dict=None, target_dir:str="target/debug/deps", visibility:list=None, _os:str=None, _arch:str=None):
     """Defines a build rule for a Rust standalone binary.
 
     Args:
@@ -213,7 +213,16 @@ def rust_binary(name:str, main:str, deps:list=None, edition:str='2021', features
         build_out = _collect_build_script_output(name, build_root, build_deps, edition, features, build_compile_env, build_run_env)
     else:
         build_out = None
-        
+
+    collect_deps = genrule(
+        name = f"_{name}#target_deps",
+        cmd = [
+            f"mkdir $OUTS",
+            f"mv $SRCS $OUTS",
+        ],
+        srcs = deps,
+        outs = [target_dir],
+    )
     cmd, tools = _rustc_cmds(
         crate_name=name,
         edition=edition,
@@ -227,7 +236,7 @@ def rust_binary(name:str, main:str, deps:list=None, edition:str='2021', features
         binary = True,
         outs = [name],
         cmd = cmd,
-        deps = deps,
+        deps = deps + [collect_deps],
         visibility = visibility,
         requires = ['rust'],
         tools = tools,
