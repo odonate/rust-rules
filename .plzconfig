@@ -25,6 +25,14 @@ Target = //plugins:shell
 [Plugin "proto"]
 Target = //plugins:proto
 ProtocTool = //third_party/proto:protoc
+LanguageDef = ///rust_proto//build_defs:rust_proto
+
+[Plugin "rust_proto"]
+Target = //plugins:rust_proto
+ProtoPlugin = //third_party/rust:protoc_gen_prost
+ProtoDep = //third_party/rust:prost
+GrpcPlugin = //third_party/rust:protoc_gen_tonic
+GrpcDep = //third_party/rust:tonic
 
 [Plugin "python"]
 Target = //plugins:python
