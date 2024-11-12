@@ -139,7 +139,7 @@ Contributions are welcome! Please open or submit a pull request with your change
 ### Extra Features for Contribution
 Here are some extra features that would be valuable additions to this project:
 
-- **Additional Crate Types**: The `rust_crate` rule currently only supports `.rlib`. Adding support for other crate types, particularly `.bin`, would be useful. Other types to support: staticlib, dylib, cdylib, proc-macro.
+- **Crate Types**: The `rust_crate` rule currently supports the following crate types `lib`, `rlib`, `proc-macro`. Adding support for other crate types, would be useful. Other types to support: `bin`, `staticlib`, `dylib`, `cdylib`.
 
 - **Improved Linking**: Currently, there is a hacky method for getting the dependency directory for linking crates with the -L flag. A cleaner solution would enhance the build process.
 
