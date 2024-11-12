@@ -421,7 +421,7 @@ rust_crate(
     name = "syn",
     crate = "syn",
     edition = "2021",
-    version = "2.0.66",
+    version = "2.0.87",
     features = [
         "clone-impls",
         "default",
@@ -1015,7 +1015,7 @@ rust_crate(
 rust_crate(
     name = "async_stream",
     crate = "async-stream",
-    version = "0.3.5",
+    version = "0.3.6",
     edition = "2018",
     crate_type = "lib",
     deps = [
@@ -1028,7 +1028,7 @@ rust_crate(
 rust_crate(
     name = "async_stream_impl",
     crate = "async-stream-impl",
-    version = "0.3.5",
+    version = "0.3.6",
     edition = "2018",
     crate_type = "proc-macro",
     deps = [
@@ -1354,7 +1354,11 @@ rust_crate(
     edition = "2021",
     crate_type = "lib",
     features = [
-        "channel", "codegen", "default", "prost", "transport",
+        "channel",
+        "codegen",
+        "default",
+        "prost",
+        "transport",
     ],
     deps = [
         ":async_stream",
@@ -1475,4 +1479,166 @@ rust_crate(
         "protoc_gen_prost": ":protoc_gen_prost_lib",
         "protoc_gen_tonic": ":protoc_gen_tonic_lib",
     },
+)
+
+## Test build scripts with external deps.
+
+rust_crate(
+    name = "libsecp256k1",
+    crate = "libsecp256k1",
+    edition = "2018",
+    version = "0.6.0",
+    build_root = "build.rs",
+    features = [
+        "default",
+    ],
+    deps = {
+        "arrayref": ":arrayref",
+        "base64": ":base64",
+        "digest": ":digest.0.9.0",
+        "libsecp256k1_core": ":libsecp256k1_core",
+        "rand": ":rand",
+        "serde": ":serde",
+    },
+    build_deps = [
+        # TODO: we should be able to get these automatically.
+        # ":libsecp256k1_core", # ecmult + genmult dep
+        # ":digest.0.9.0", # core dep
+        # ":generic_array", # digest dep
+        # ":typenum", # generic array dep
+        # ":subtle", # core dep
+        # ":crunchy", # core dep
+        ":libsecp256k1_gen_ecmult",
+        ":libsecp256k1_gen_genmult",
+    ],
+)
+
+rust_crate(
+    name = "arrayref",
+    crate = "arrayref",
+    edition = "2021",
+    version = "0.3.9",
+)
+
+rust_crate(
+    name = "libsecp256k1_core",
+    crate = "libsecp256k1-core",
+    edition = "2018",
+    version = "0.2.2",
+    deps = {
+        "crunchy": ":crunchy",
+        "digest": ":digest.0.9.0",
+        "subtle": ":subtle",
+    },
+)
+
+rust_crate(
+    name = "crunchy",
+    crate = "crunchy",
+    edition = "2021",
+    version = "0.2.2",
+    build_root = "build.rs",
+    compile_env = {
+        # TODO: absolute path would be better.
+        "OUT_DIR": "../../target/debug/build/crunchy_0_2_2/out",
+    },
+)
+
+rust_crate(
+    name = "subtle",
+    crate = "subtle",
+    edition = "2021",
+    version = "2.6.1",
+)
+
+rust_crate(
+    name = "digest",
+    crate = "digest",
+    edition = "2018",
+    version = "0.10.7",
+    features = [
+        "default",
+        "core-api",
+        "block-buffer",
+    ],
+    deps = [
+        ":crypto_common",
+        ":block_buffer",
+    ],
+)
+
+rust_crate(
+    name = "digest.0.9.0",
+    crate = "digest",
+    edition = "2018",
+    version = "0.9.0",
+    features = [
+        "std",
+    ],
+    deps = [
+        ":generic_array",
+    ],
+)
+
+rust_crate(
+    name = "block_buffer",
+    crate = "block-buffer",
+    edition = "2018",
+    version = "0.10.4",
+    deps = [
+        ":generic_array",
+    ],
+)
+
+rust_crate(
+    name = "crypto_common",
+    crate = "crypto-common",
+    edition = "2018",
+    version = "0.1.6",
+    deps = [
+        ":generic_array",
+        ":typenum",
+    ],
+)
+
+rust_crate(
+    name = "generic_array",
+    crate = "generic-array",
+    edition = "2018",
+    version = "0.14.7",
+    deps = [
+        ":typenum",
+    ],
+)
+
+rust_crate(
+    name = "typenum",
+    crate = "typenum",
+    build_root = "build/main.rs",
+    compile_env = {
+        # TODO: absolute path would be better.
+        "OUT_DIR": "../../target/debug/build/typenum_1_17_0/out",
+    },
+    edition = "2018",
+    version = "1.17.0",
+)
+
+rust_crate(
+    name = "libsecp256k1_gen_ecmult",
+    crate = "libsecp256k1-gen-ecmult",
+    edition = "2018",
+    version = "0.3.0",
+    deps = [
+        ":libsecp256k1_core",
+    ],
+)
+
+rust_crate(
+    name = "libsecp256k1_gen_genmult",
+    crate = "libsecp256k1-gen-genmult",
+    edition = "2018",
+    version = "0.3.0",
+    deps = [
+        ":libsecp256k1_core",
+    ],
 )
