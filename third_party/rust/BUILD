@@ -266,15 +266,16 @@ rust_crate(
 rust_crate(
     name = "indexmap.1.9.3",
     crate = "indexmap",
+    # crate_name = "indexmap",
     version = "1.9.3",
     edition = "2021",
     features = [
         #"default",
         #"std",
     ],
-    deps = {
-        "hashbrown": ":hashbrown.0.12.3",
-    },
+    deps = [
+        ":hashbrown.0.12.3",
+    ],
     build_root = "build.rs",
     build_deps = [
         ":autocfg",
@@ -286,6 +287,7 @@ rust_crate(
     crate = "indexmap",
     version = "1.2.0",
     edition = "2015",
+    # crate_name = "indexmap",
 )
 
 
@@ -604,10 +606,12 @@ rust_crate(
         "std",
         "use-libc-auxv",
     ],
-    deps = {
-        "bitflags": ":bitflags",
-        "linux_raw_sys": ":linux_raw_sys",
-        "libc": ":libc",
+    deps = [
+        ":bitflags",
+        ":linux_raw_sys",
+        ":libc",
+    ],
+    renamed_deps = {
         "libc_errno": ":errno", # renamed
     },
     build_root = "build.rs",
@@ -1252,22 +1256,22 @@ rust_crate(
         "limit", "load", "make", "pin-project", "pin-project-lite", "rand", "ready-cache", "slab",
         "timeout", "tokio", "tokio-util", "tracing", "util",
     ],
-    deps = {
-        "futures_core": ":futures_core",
-        "futures_util": ":futures_util",
+    deps = [
+        ":futures_core",
+        ":futures_util",
         # https://github.com/indexmap-rs/indexmap/issues/289
-        #"indexmap": ":indexmap.1.9.3",
-        "indexmap": ":indexmap.1.2.0",
-        "pin_project": ":pin_project",
-        "pin_project_lite": ":pin_project_lite",
-        "rand": ":rand",
-        "slab": ":slab",
-        "tokio": ":tokio",
-        "tokio_util": ":tokio_util",
-        "tower_layer": ":tower_layer",
-        "tower_service": ":tower_service",
-        "tracing": ":tracing",
-    },
+        #":indexmap.1.9.3",
+        ":indexmap.1.2.0",
+        ":pin_project",
+        ":pin_project_lite",
+        ":rand",
+        ":slab",
+        ":tokio",
+        ":tokio_util",
+        ":tower_layer",
+        ":tower_service",
+        ":tracing",
+    ],
 )
 
 rust_crate(
@@ -1306,27 +1310,27 @@ rust_crate(
     version = "0.6.20",
     edition = "2021",
     crate_type = "lib",
-    deps = {
-        "async_trait": ":async_trait",
-        "axum_core": ":axum_core",
-        "bitflags": ":bitflags.1.3.2",
-        "bytes": ":bytes",
-        "futures_util": ":futures_util",
-        "http": ":http",
-        "http_body": ":http_body",
-        "hyper": ":hyper",
-        "itoa": ":itoa",
-        "matchit": ":matchit",
-        "memchr": ":memchr",
-        "mime": ":mime",
-        "percent_encoding": ":percent_encoding",
-        "pin_project_lite": ":pin_project_lite",
-        "serde": ":serde",
-        "sync_wrapper": ":sync_wrapper",
-        "tower": ":tower",
-        "tower_layer": ":tower_layer",
-        "tower_service": ":tower_service",
-    },
+    deps = [
+        ":async_trait",
+        ":axum_core",
+        ":bitflags.1.3.2",
+        ":bytes",
+        ":futures_util",
+        ":http",
+        ":http_body",
+        ":hyper",
+        ":itoa",
+        ":matchit",
+        ":memchr",
+        ":mime",
+        ":percent_encoding",
+        ":pin_project_lite",
+        ":serde",
+        ":sync_wrapper",
+        ":tower",
+        ":tower_layer",
+        ":tower_service",
+    ],
     build_root = "build.rs",
     build_deps = [
         ":rustversion",
@@ -1393,6 +1397,7 @@ rust_crate(
     crate = "once_cell",
     edition = "2021",
     version = "1.10.0",
+    # crate_name = "once_cell",
 )
 
 rust_crate_download(
@@ -1408,13 +1413,13 @@ rust_crate(
     download = ":protoc_gen_prost_dl",
     version = "0.3.1",
     features = [],
-    deps = {
-        "once_cell": ":once_cell",
-        "prost": ":prost",
-        "prost_build": ":prost_build",
-        "prost_types": ":prost_types",
-        "regex": ":regex",
-    },
+    deps = [
+        ":once_cell",
+        ":prost",
+        ":prost_build",
+        ":prost_types",
+        ":regex",
+    ],
 )
 
 rust_crate(
@@ -1426,10 +1431,10 @@ rust_crate(
     features = [],
     crate_type = 'bin',
     src_root = 'src/main.rs',
-    deps = {
-        "prost": ":prost",
-        "protoc_gen_prost": ":protoc_gen_prost_lib",
-    },
+    deps = [
+        ":prost",
+        ":protoc_gen_prost_lib",
+    ],
     compile_env = {
         "CARGO_PKG_VERSION": "0.1.0",
     },
@@ -1449,17 +1454,17 @@ rust_crate(
     edition = "2021",
     features = [],
     version = "0.4.0",
-    deps = {
-        "heck": ":heck",
-        "prettyplease": ":prettyplease",
-        "prost_build": ":prost_build",
-        "prost_types": ":prost_types",
-        "prost": ":prost",
-        "protoc_gen_prost": ":protoc_gen_prost_lib",
-        "regex": ":regex",
-        "syn": ":syn",
-        "tonic_build": ":tonic_build",
-    },
+    deps = [
+        ":heck",
+        ":prettyplease",
+        ":prost_build",
+        ":prost_types",
+        ":prost",
+        ":protoc_gen_prost_lib",
+        ":regex",
+        ":syn",
+        ":tonic_build",
+    ],
 )
 
 rust_crate(
@@ -1474,11 +1479,11 @@ rust_crate(
     features = [],
     src_root = "src/main.rs",
     version = "0.4.0",
-    deps = {
-        "prost": ":prost",
-        "protoc_gen_prost": ":protoc_gen_prost_lib",
-        "protoc_gen_tonic": ":protoc_gen_tonic_lib",
-    },
+    deps = [
+        ":prost",
+        ":protoc_gen_prost_lib",
+        ":protoc_gen_tonic_lib",
+    ],
 )
 
 ## Test build scripts with external deps.
@@ -1492,14 +1497,14 @@ rust_crate(
     features = [
         "default",
     ],
-    deps = {
-        "arrayref": ":arrayref",
-        "base64": ":base64",
-        "digest": ":digest.0.9.0",
-        "libsecp256k1_core": ":libsecp256k1_core",
-        "rand": ":rand",
-        "serde": ":serde",
-    },
+    deps = [
+        ":arrayref",
+        ":base64",
+        ":digest.0.9.0",
+        ":libsecp256k1_core",
+        ":rand",
+        ":serde",
+    ],
     build_deps = [
         # TODO: we should be able to get these automatically.
         # ":libsecp256k1_core", # ecmult + genmult dep
@@ -1525,11 +1530,11 @@ rust_crate(
     crate = "libsecp256k1-core",
     edition = "2018",
     version = "0.2.2",
-    deps = {
-        "crunchy": ":crunchy",
-        "digest": ":digest.0.9.0",
-        "subtle": ":subtle",
-    },
+    deps = [
+        ":crunchy",
+        ":digest.0.9.0",
+        ":subtle",
+    ],
 )
 
 rust_crate(

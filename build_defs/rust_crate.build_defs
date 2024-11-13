@@ -167,7 +167,7 @@ def rust_crate_download(
 def rust_crate(
         # Crate params.
         name:str, crate:str, version:str='', download:str='', edition:str='2015', src_root:str='src/lib.rs',
-        features:list=None, deps:list|dict=None, crate_type:str='lib', out_dir:str='target/debug/deps',
+        features:list=None, deps:list=[], renamed_deps:dict={}, crate_type:str='lib', out_dir:str='target/debug/deps',
         warns:list=None, allows:list=None, compile_env:dict=None,     
         # Build params.
         build_root:str=None, build_deps:list|dict=None, build_out_dir:str='target/debug/build',
@@ -183,8 +183,7 @@ def rust_crate(
             crate = crate,
             version = version
         )
-    extra_deps = []
-    extra_deps.append(download)
+        deps.append(download)
     
     # Run any required build scripts.
     if build_root:
@@ -202,7 +201,7 @@ def rust_crate(
             os=os,
             arch=arch,
         )
-        extra_deps.append(rust_crate_build_script)
+        deps.append(rust_crate_build_script)
     else:
         rust_crate_build_script = None
 
@@ -215,10 +214,10 @@ def rust_crate(
         src_root=src_root,
         features=features,
         deps=deps,
+        renamed_deps=renamed_deps,
         crate_type=crate_type,
         out_dir=out_dir,
         build_out=rust_crate_build_script,
-        extra_deps=extra_deps,
         warns=warns,
         allows=allows,
         compile_env=compile_env,
@@ -226,9 +225,9 @@ def rust_crate(
     )
 
 def _compile_rust_crate(
-        name:str, download:str, crate:str, version:str, edition:str, src_root:str, features:list,
-        deps:list|dict, crate_type:str, out_dir:str, build_out:str, extra_deps:list, warns:list,
-        allows:list, compile_env:dict, visibility:list,
+        name:str, download:str, crate:str, version:str, edition:str, src_root:str,
+        features:list, deps:list, renamed_deps:dict={}, crate_type:str, out_dir:str, build_out:str,
+        warns:list, allows:list, compile_env:dict, visibility:list,
 ):
     base = f'{crate}-{version}'
     crate_name = crate.replace('-', '_')
@@ -246,14 +245,7 @@ def _compile_rust_crate(
         allows=allows,
         compile_env=compile_env,
     )
-    if deps is None:
-        pass
-    elif isinstance(deps, list):
-        crate_deps = deps
-    elif isinstance(deps, dict):
-        crate_deps = deps.values()
-    else:
-        fail(f'Unknown deps type {deps}')
+    crate_deps = deps + renamed_deps.values()
 
     major, minor, _ = version.split('.')
     return build_rule(
@@ -267,10 +259,10 @@ def _compile_rust_crate(
             'bin': [f'{out_dir}/{crate_name}-{major}.{minor}' if crate_type in ['bin'] else None],
         },
         cmd = cmd,
-        deps = crate_deps + extra_deps if deps else extra_deps,
+        deps = crate_deps,
         visibility = visibility,
         requires = ['rust'],
-        labels=_construct_labels(crate_name, crate, version, crate_type, out_dir),
+        labels=_construct_labels(name, crate_name, version, crate_type, out_dir),
         tools = tools,
         binary = True if crate_type == 'bin' else False,
         pre_build=_collect_extern_paths(
@@ -282,27 +274,28 @@ def _compile_rust_crate(
             features=features,
             out_dir=out_dir,
             deps=deps,
+            renamed_deps=renamed_deps,
             build_out=build_out,
             warns=warns,
             allows=allows,
             compile_env=compile_env,
-        ) if deps else None,
+        ) if crate_deps else None,
         needs_transitive_deps = True,
         building_description = f'Compiling crate for {base}...',
     )        
     
 
-def _construct_labels(crate_name:str, crate:str, version:str, crate_type:str, out_dir:str):
+def _construct_labels(rule_name:str, crate_name:str, version:str, crate_type:str, out_dir:str):
     """Returns the labels for a rust_crate based on the crate_type"""
     labels = []
     pkg = package_name()
     if crate_type in ['lib', 'rlib']:
-        crate_label = f'rust_crate_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.rlib'
-        md_label = f'rust_md_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.rmeta'
+        crate_label = f'rust_crate_path:{rule_name}:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.rlib'
+        md_label = f'rust_md_path:{rule_name}:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.rmeta'
         labels.extend([crate_label, md_label])
     elif crate_type in ['proc-macro']:
-        crate_label = f'rust_crate_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.so'
-        md_label = f'rust_md_path:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.so'
+        crate_label = f'rust_crate_path:{rule_name}:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.so'
+        md_label = f'rust_md_path:{rule_name}:{crate_name}:{pkg}/{out_dir}/lib{crate_name}-{version}.so'
         labels.extend([crate_label, md_label])
     elif crate_type in ['bin']:
         pass
@@ -319,7 +312,8 @@ def _collect_extern_paths(
         crate_type:str,
         features:list=[],
         out_dir:str,
-        deps:list|dict,
+        deps:list,
+        renamed_deps:dict={},
         build_out:str=None,
         warns:list=None,
         allows:list=None,
@@ -332,12 +326,13 @@ def _collect_extern_paths(
         externs = []
         for label in labels:
             flag = label.split(':')
-            dep_crate = flag[0].replace('-', '_')
-            dep_path = flag[1]
-            if rename and (rename == dep_crate or dep == dep_crate):
-                externs.append(f'--extern {rename}={dep_path}')
-            elif not rename and dep == dep_crate:
-                externs.append(f'--extern {dep_crate}={dep_path}')
+            rule_name = flag[0]
+            crate_name = flag[1]
+            crate_path = flag[2]
+            if not rename and rule_name == dep:
+                externs.append(f'--extern {crate_name}={crate_path}')
+            if rename and rule_name == dep:
+                externs.append(f'--extern {rename}={crate_path}')
         return externs
             
     def collect_extern_paths(name):
@@ -347,16 +342,12 @@ def _collect_extern_paths(
             label_format = 'rust_crate_path:'
             if crate_type == 'proc-macro':
                 externs.append('--extern proc_macro')
-        if isinstance(deps, dict):
-            for rename, dep in deps.items():
-                labels = get_labels(dep, label_format)
-                externs += extern_flags(dep, labels, rename)
-        elif isinstance(deps, list):
-            for dep in deps:
-                labels = get_labels(dep, label_format)
-                externs += extern_flags(dep, labels)
-        else:
-            fail(f'Unknown dep type {deps}')
+        for dep in deps:
+            labels = get_labels(dep, label_format)
+            externs += extern_flags(dep, labels)
+        for rename, dep in renamed_deps.items():
+            labels = get_labels(dep, label_format)
+            externs += extern_flags(dep, labels, rename)
         if externs:
             cmds, _ = _rustc_crate_cmds(
                 crate_name=crate_name,
