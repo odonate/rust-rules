@@ -1647,3 +1647,70 @@ rust_crate(
         ":libsecp256k1_core",
     ],
 )
+
+
+rust_crate(
+    name = "blake3",
+    crate = "blake3",
+    edition = "2021",
+    version = "1.5.4",
+    features = [
+        "default",
+        "std",
+    ],
+    deps = [
+        ":arrayref",
+        ":arrayvec",
+        ":cfg_if",
+        ":constant_time_eq",
+    ],
+    build_root = "build.rs",
+    build_deps = [
+        ":cc",
+    ],
+    build_run_env = {
+        "TARGET": "x86_64-unknown-linux-gnu",
+        "HOST": "x86_64-unknown-linux-gnu",
+        "OPT_LEVEL": "2",
+        "CC_ENABLE_DEBUG_OUTPUT": "",
+        # "CFLAGS": "-I third_party/rust/c",
+        # "CARGO_FEATURE_PURE": "", # bool
+        # "HOST_CFLAGS": "-I third_party/rust/blake3-1.5.4",
+        "CFLAGS": "-I ~/third_party/rust/blake3-1.5.4",
+    },
+)
+
+rust_crate(
+    name = "arrayvec",
+    crate = "arrayvec",
+    edition = "2021",
+    version = "0.7.6",
+)
+
+rust_crate(
+    name = "constant_time_eq",
+    crate = "constant_time_eq",
+    edition = "2021",
+    version = "0.3.1",
+)
+
+rust_crate(
+    name = "cc",
+    crate = "cc",
+    edition = "2021",
+    version = "1.2.0",
+    deps = [
+        ":shlex",
+        # ":libc",
+    ],
+)
+
+rust_crate(
+    name = "shlex",
+    crate = "shlex",
+    edition = "2021",
+    version = "1.3.0",
+    features = [
+        "std",
+    ],
+)

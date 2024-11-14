@@ -9,13 +9,13 @@ rust_library(
     ],
 )
 
-rust_binary(
-    name = "main",
-    main = "src/main.rs",
-    deps = [
-        ":math",
-    ],
-)
+# rust_binary(
+#     name = "main",
+#     main = "src/main.rs",
+#     deps = [
+#         ":math",
+#     ],
+# )
 
 rust_test(
     name = 'test',

@@ -135,15 +135,16 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
 
     # All this really does is ensure that rust_proto_libraries build before the pre_build function.
     # TODO: is there a better way of doing this?
-    collect_deps = genrule(
-        name = f"_{name}#target_deps",
-        cmd = [
-            f"mkdir $OUTS",
-            f"mv $SRCS $OUTS",
-        ],
-        srcs = deps,
-        outs = [target_dir],
-    )
+    if deps:
+        collect_deps = genrule(
+            name = f"_{name}#target_deps",
+            cmd = [
+                f"mkdir $OUTS",
+                f"mv $SRCS $OUTS",
+            ],
+            srcs = deps,
+            outs = [target_dir],
+        )
     if modules:
         filegroup(
             name=f'_{name}#mods',
@@ -169,7 +170,7 @@ def rust_library(name:str, root:str, crate_name:str="", modules:list=None, deps:
         deps = deps,
         visibility = visibility,
         requires = ['rust'],
-        labels=_construct_labels(crate_name, 'lib'),
+        labels=_construct_labels(name, crate_name, 'lib'),
         tools = tools,
         pre_build=_collect_extern_paths(
             crate_name=crate_name,
@@ -395,28 +396,85 @@ def _collect_build_script_output(name:str, root:str, deps:list, edition:str, fea
     )
 
 
+# def _collect_extern_paths(
+#         crate_name:str,
+#         edition:str,
+#         crate_type:str,
+#         features:list,
+#         deps:list,
+#         compile_env:dict=None,
+#         test:bool=False,
+# ):
+#     """Returns the pre-build function to apply --extern to the rustc command"""
+#     def extern_flags(full_dep, labels, rename=None):
+#         dep = canonicalise(full_dep).split(':')[1]
+#         externs = []
+#         pkg = package_name()
+#         for label in labels:
+#             flag = label.split(':')
+#             dep_crate = flag[0].replace('-', '_')
+#             dep_path = flag[1]
+#             if rename and (rename == dep_crate or dep == dep_crate):
+#                 externs.append(f'--extern {rename}={dep_path}')
+#             elif not rename and dep == dep_crate:
+#                 externs.append(f'--extern {dep_crate}={dep_path}')
+#         return externs
+            
+#     def collect_extern_paths(name):
+#         externs = []
+#         label_format = 'rust_md_path:'
+#         if crate_type in ["bin", "proc-macro"]:
+#             label_format = 'rust_crate_path:'
+#             if crate_type == 'proc-macro':
+#                 externs.append('--extern proc_macro')    
+#         if isinstance(deps, dict):
+#             for rename, dep in deps.items():
+#                 labels = get_labels(dep, label_format)
+#                 externs += extern_flags(dep, labels, rename)
+#         elif isinstance(deps, list):
+#             for dep in deps:
+#                 labels = get_labels(dep, label_format)
+#                 externs += extern_flags(dep, labels)
+#         else:
+#             fail(f'Unknown dep type {deps}')
+#         if externs:
+#             cmds, _ = _rustc_cmds(
+#                 crate_name=crate_name if not test else f'{crate_name}_test',
+#                 edition=edition,
+#                 err_format='human',
+#                 crate_type=crate_type,
+#                 externs=externs,
+#                 deps=deps,
+#                 compile_env=compile_env,
+#                 test=test,
+#             )
+#             for k, v in cmds.items():
+#                 set_command(name, k, v)
+#     return collect_extern_paths
+
 def _collect_extern_paths(
         crate_name:str,
         edition:str,
         crate_type:str,
-        features:list,
+        features:list=[],
         deps:list,
         compile_env:dict=None,
         test:bool=False,
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
     def extern_flags(full_dep, labels, rename=None):
+        """Filter out transitive deps. Rename if required"""
         dep = canonicalise(full_dep).split(':')[1]
         externs = []
-        pkg = package_name()
         for label in labels:
             flag = label.split(':')
-            dep_crate = flag[0].replace('-', '_')
-            dep_path = flag[1]
-            if rename and (rename == dep_crate or dep == dep_crate):
-                externs.append(f'--extern {rename}={dep_path}')
-            elif not rename and dep == dep_crate:
-                externs.append(f'--extern {dep_crate}={dep_path}')
+            rule_name = flag[0]
+            crate_name = flag[1]
+            crate_path = flag[2]
+            if not rename and rule_name == dep:
+                externs.append(f'--extern {crate_name}={crate_path}')
+            if rename and rule_name == dep:
+                externs.append(f'--extern {rename}={crate_path}')
         return externs
             
     def collect_extern_paths(name):
@@ -425,17 +483,10 @@ def _collect_extern_paths(
         if crate_type in ["bin", "proc-macro"]:
             label_format = 'rust_crate_path:'
             if crate_type == 'proc-macro':
-                externs.append('--extern proc_macro')    
-        if isinstance(deps, dict):
-            for rename, dep in deps.items():
-                labels = get_labels(dep, label_format)
-                externs += extern_flags(dep, labels, rename)
-        elif isinstance(deps, list):
-            for dep in deps:
-                labels = get_labels(dep, label_format)
-                externs += extern_flags(dep, labels)
-        else:
-            fail(f'Unknown dep type {deps}')
+                externs.append('--extern proc_macro')
+        for dep in deps:
+            labels = get_labels(dep, label_format)
+            externs += extern_flags(dep, labels)
         if externs:
             cmds, _ = _rustc_cmds(
                 crate_name=crate_name if not test else f'{crate_name}_test',
@@ -451,20 +502,22 @@ def _collect_extern_paths(
                 set_command(name, k, v)
     return collect_extern_paths
 
-def _construct_labels(crate_name:str, crate_type:str):
+
+def _construct_labels(rule_name:str, crate_name:str, crate_type:str):
     """Returns the labels for a rust_crate based on the crate_type"""
     labels = []
     pkg = package_name()
     if crate_type in ['lib', 'rlib']:
-        crate_label = f'rust_crate_path:{crate_name}:{pkg}/lib{crate_name}.rlib'
-        md_label = f'rust_md_path:{crate_name}:{pkg}/lib{crate_name}.rmeta'
+        crate_label = f'rust_crate_path:{rule_name}:{crate_name}:{pkg}/lib{crate_name}.rlib'
+        md_label = f'rust_md_path:{rule_name}:{crate_name}:{pkg}/lib{crate_name}.rmeta'
         labels.extend([crate_label, md_label])
     elif crate_type in ['proc-macro']:
-        crate_label = f'rust_crate_path:{crate_name}:{pkg}/lib{crate_name}.so'
-        md_label = f'rust_md_path:{crate_name}:{pkg}/lib{crate_name}.so'
+        crate_label = f'rust_crate_path:{rule_name}:{crate_name}:{pkg}/lib{crate_name}.so'
+        md_label = f'rust_md_path:{rule_name}:{crate_name}:{pkg}/lib{crate_name}.so'
         labels.extend([crate_label, md_label])
     elif crate_type in ['bin']:
         pass
     else:
         fail(f'Unsupported labels for crate type: {crate_type}')
     return labels
+    

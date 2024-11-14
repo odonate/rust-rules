@@ -193,7 +193,7 @@ def rust_crate(
             download=download,
             edition=edition,
             root=build_root,
-            deps=build_deps,
+            deps=[download] + build_deps if build_deps else [download],
             out_dir=build_out_dir,
             compile_env=build_compile_env,
             run_env=build_run_env,
@@ -412,7 +412,7 @@ def _rust_crate_build_script(
         srcs = [download],
         outs = {
             'build_bin': [f'{out_dir}/{formatted_base}/{crate_name}-{major}.{minor}'],
-            'dep_info': [f'{out_dir}/{formatted_base}/{crate_name}-{major}.{minor}.d']
+            'dep_info': [f'{out_dir}/{formatted_base}/{crate_name}-{major}.{minor}.d'],
         },
         cmd = cmd,
         deps = deps,
@@ -435,7 +435,10 @@ def _rust_crate_build_script(
     execution = build_rule(
         name=f'{crate}-{version}',
         tag = 'run_build_script',
-        srcs = [compilation + '|build_bin'],        
+        srcs = [
+            compilation + '|build_bin',
+            download,
+        ],        
         cmd = ' && '.join([
             f'mkdir -p {out_dir}/{formatted_base}/out',
             # Export env vars used inside build script.
@@ -445,7 +448,7 @@ def _rust_crate_build_script(
             f'$SRCS > {out_dir}/{formatted_base}/out/output',
         ]),
         outs = { 'output': [f'{out_dir}/{formatted_base}/out'] },
-        deps = [compilation],
+        deps = [compilation] + deps,
         pass_env = ['TOOLS_RUSTC'],
         env = run_env,
         tools = tools,
