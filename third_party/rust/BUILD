@@ -505,10 +505,6 @@ rust_crate(
     edition = "2018",
     crate_type = 'proc-macro',
     build_root = "build/build.rs",
-    compile_env = {
-        # TODO: absolute path would be better.
-        'OUT_DIR': '../../target/debug/build/rustversion_1_0_17/out',
-    },
 )
 
 rust_crate(
@@ -615,16 +611,6 @@ rust_crate(
         "libc_errno": ":errno", # renamed
     },
     build_root = "build.rs",
-    build_run_env = {
-        # Found from <cargo_out_dir>.rustc_info.json
-        "CARGO_CFG_TARGET_ARCH": "x86_64",
-        "CARGO_CFG_TARGET_ENV": "gnu",
-        "CARGO_CFG_TARGET_OS": "linux",
-        "CARGO_CFG_TARGET_POINTER_WIDTH": "64",
-        "CARGO_CFG_TARGET_ENDIAN": "little",
-        "RUSTC": CONFIG.RUST.RUSTC,
-        "TARGET": "x86_64-unknown-linux-gnu",
-    },
     build_deps = [
         ":libc",
     ],
@@ -654,9 +640,6 @@ rust_crate(
     version = "0.2.20",
     edition = "2021",
     build_root = "build.rs",
-    build_compile_env = {
-        "CARGO_PKG_VERSION": "0.1.0",
-    },
     deps = [
         ":proc_macro2",
         ":syn",
@@ -820,9 +803,6 @@ rust_crate(
         "std",
     ],
     build_root = "build.rs",
-    build_run_env = {
-        "TARGET": "x86_64-unknown-linux-gnu",
-    },
 )
 
 rust_crate(
@@ -1385,9 +1365,6 @@ rust_crate(
         ":tower_service",
         ":tracing",
     ],
-    compile_env = {
-        "CARGO_PKG_VERSION": "0.1.0",
-    },
 )
 
 #### rust-proto examples ####
@@ -1435,9 +1412,6 @@ rust_crate(
         ":prost",
         ":protoc_gen_prost_lib",
     ],
-    compile_env = {
-        "CARGO_PKG_VERSION": "0.1.0",
-    },
 )
 
 
@@ -1469,9 +1443,6 @@ rust_crate(
 
 rust_crate(
     name = "protoc_gen_tonic",
-    compile_env = {
-        "CARGO_PKG_VERSION": "0.1.0",
-    },
     crate = "protoc-gen-tonic",
     crate_type = "bin",
     download = ":protoc_gen_tonic_dl",
@@ -1506,13 +1477,6 @@ rust_crate(
         ":serde",
     ],
     build_deps = [
-        # TODO: we should be able to get these automatically.
-        # ":libsecp256k1_core", # ecmult + genmult dep
-        # ":digest.0.9.0", # core dep
-        # ":generic_array", # digest dep
-        # ":typenum", # generic array dep
-        # ":subtle", # core dep
-        # ":crunchy", # core dep
         ":libsecp256k1_gen_ecmult",
         ":libsecp256k1_gen_genmult",
     ],
@@ -1543,10 +1507,6 @@ rust_crate(
     edition = "2021",
     version = "0.2.2",
     build_root = "build.rs",
-    compile_env = {
-        # TODO: absolute path would be better.
-        "OUT_DIR": "../../target/debug/build/crunchy_0_2_2/out",
-    },
 )
 
 rust_crate(
@@ -1620,10 +1580,6 @@ rust_crate(
     name = "typenum",
     crate = "typenum",
     build_root = "build/main.rs",
-    compile_env = {
-        # TODO: absolute path would be better.
-        "OUT_DIR": "../../target/debug/build/typenum_1_17_0/out",
-    },
     edition = "2018",
     version = "1.17.0",
 )
@@ -1648,7 +1604,6 @@ rust_crate(
     ],
 )
 
-
 rust_crate(
     name = "blake3",
     crate = "blake3",
@@ -1668,16 +1623,6 @@ rust_crate(
     build_deps = [
         ":cc",
     ],
-    build_run_env = {
-        "TARGET": "x86_64-unknown-linux-gnu",
-        "HOST": "x86_64-unknown-linux-gnu",
-        "OPT_LEVEL": "2",
-        "CC_ENABLE_DEBUG_OUTPUT": "",
-        # "CFLAGS": "-I third_party/rust/c",
-        # "CARGO_FEATURE_PURE": "", # bool
-        # "HOST_CFLAGS": "-I third_party/rust/blake3-1.5.4",
-        "CFLAGS": "-I ~/third_party/rust/blake3-1.5.4",
-    },
 )
 
 rust_crate(

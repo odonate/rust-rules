@@ -16,7 +16,6 @@ def _rustc_crate_cmds(
         build_out:str=None,
         warns:list=None,
         allows:list=None,
-        compile_env:dict=None,
 ):
     """Returns the commands to pass to rustc, and tools to use for it.
     
@@ -64,8 +63,7 @@ def _rustc_crate_cmds(
                   information.
         compile_env (dict): Environment variables to export at compile time.
     """
-    export_envs = [f'export {k}={v} && ' for k,v in sorted(compile_env.items())] if compile_env else []
-    cmd = export_envs + ['$TOOLS_RUSTC']
+    cmd = ['$TOOLS_RUSTC']
     if crate_name:
         cmd.append('--crate-name ' + crate_name)
     if edition:
@@ -176,6 +174,21 @@ def rust_crate(
         arch:str=None,
         visibility:list=["PUBLIC"],
 ):
+    if not os:
+        if CONFIG.OS == 'linux':
+            os = 'unknown-linux-gnu'
+        elif CONFIG.OS == 'darwin':
+            os = 'apple-darwin'
+        else:
+            raise ParseError('Unknown OS %s, you must pass os explicitly to rust_crate' % CONFIG.OS)
+    if not arch:
+        if CONFIG.ARCH == 'amd64':
+            arch = 'x86_64'
+        elif CONFIG.ARCH == 'x86':
+            arch = 'i686'
+        else:
+            raise ParseError('Unknown architecture %s, you must pass arch explicitly to rust_crate' % CONFIG.ARCH)
+
     base = f'{crate}-{version}'
     if not download:
         download = rust_crate_download(
@@ -205,30 +218,6 @@ def rust_crate(
     else:
         rust_crate_build_script = None
 
-    return _compile_rust_crate(
-        name=name,
-        download=download,
-        crate=crate,
-        version=version,
-        edition=edition,
-        src_root=src_root,
-        features=features,
-        deps=deps,
-        renamed_deps=renamed_deps,
-        crate_type=crate_type,
-        out_dir=out_dir,
-        build_out=rust_crate_build_script,
-        warns=warns,
-        allows=allows,
-        compile_env=compile_env,
-        visibility=visibility,
-    )
-
-def _compile_rust_crate(
-        name:str, download:str, crate:str, version:str, edition:str, src_root:str,
-        features:list, deps:list, renamed_deps:dict={}, crate_type:str, out_dir:str, build_out:str,
-        warns:list, allows:list, compile_env:dict, visibility:list,
-):
     base = f'{crate}-{version}'
     crate_name = crate.replace('-', '_')
     cmd, tools = _rustc_crate_cmds(
@@ -240,10 +229,9 @@ def _compile_rust_crate(
         crate_type=crate_type,
         features=features,
         out_dir=out_dir,
-        build_out=build_out,
+        build_out=rust_crate_build_script,
         warns=warns,
         allows=allows,
-        compile_env=compile_env,
     )
     crate_deps = deps + renamed_deps.values()
 
@@ -275,12 +263,17 @@ def _compile_rust_crate(
             out_dir=out_dir,
             deps=deps,
             renamed_deps=renamed_deps,
-            build_out=build_out,
+            build_out=rust_crate_build_script,
             warns=warns,
             allows=allows,
-            compile_env=compile_env,
         ) if crate_deps else None,
         needs_transitive_deps = True,
+        env=_default_env(
+            crate=crate,
+            version=version,
+            env=compile_env,
+            out_dir=build_out_dir,
+        ),
         building_description = f'Compiling crate for {base}...',
     )        
     
@@ -317,7 +310,7 @@ def _collect_extern_paths(
         build_out:str=None,
         warns:list=None,
         allows:list=None,
-        compile_env:dict=None,
+        emit:list=['dep-info', 'metadata', 'link'],
 ):
     """Returns the pre-build function to apply --extern to the rustc command"""
     def extern_flags(full_dep, labels, rename=None):
@@ -361,8 +354,8 @@ def _collect_extern_paths(
                 build_out=build_out,
                 warns=warns,
                 allows=allows,
-                compile_env=compile_env,
                 externs=externs,
+                emit=emit,
             )
             for k, v in cmds.items():
                 set_command(name, k, v)
@@ -375,25 +368,11 @@ def _rust_crate_build_script(
         out_dir:str, compile_env:dict={}, run_env:dict={},
         features:list=[], os:str=None, arch:str=None,
 ):
-    if not os:
-        if CONFIG.OS == 'linux':
-            os = 'unknown-linux-gnu'
-        elif CONFIG.OS == 'darwin':
-            os = 'apple-darwin'
-        else:
-            raise ParseError('Unknown OS %s, you must pass os explicitly to rust_crate' % CONFIG.OS)
-    if not arch:
-        if CONFIG.ARCH == 'amd64':
-            arch = 'x86_64'
-        elif CONFIG.ARCH == 'x86':
-            arch = 'i686'
-        else:
-            raise ParseError('Unknown architecture %s, you must pass arch explicitly to rust_crate' % CONFIG.ARCH)
-
+    pkg = package_name()
     host = f'{arch}-{os}'
     base = f'{crate}-{version}'
     formatted_base = base.replace('-', '_').replace('.', '_')
-    crate_name = 'build_script_build'
+    crate_name = f'build_script_build'
     cmd, tools = _rustc_crate_cmds(
         crate_name=crate_name,
         version=version,
@@ -403,7 +382,7 @@ def _rust_crate_build_script(
         crate_type='bin',
         emit=['dep-info', 'link'], # Omits metadata.
         features=features,
-        out_dir=f'{out_dir}/{formatted_base}',
+        out_dir=f'{out_dir}/{base}',
     )
     major, minor, _ = version.split('.')
     compilation = build_rule(
@@ -411,46 +390,56 @@ def _rust_crate_build_script(
         tag = 'compile_build_script',
         srcs = [download],
         outs = {
-            'build_bin': [f'{out_dir}/{formatted_base}/{crate_name}-{major}.{minor}'],
-            'dep_info': [f'{out_dir}/{formatted_base}/{crate_name}-{major}.{minor}.d'],
+            'build_bin': [f'{out_dir}/{base}/{crate_name}-{major}.{minor}'],
+            'dep_info': [f'{out_dir}/{base}/{crate_name}-{major}.{minor}.d'],
         },
         cmd = cmd,
         deps = deps,
         requires = ['rust'],
         tools = tools,
-        env = compile_env,
         pre_build=_collect_extern_paths(
             crate_name=crate_name,
             version=version,
             edition=edition,
             src_root=root,
             crate_type='bin',
-            out_dir=f'{out_dir}/{formatted_base}',
+            out_dir=f'{out_dir}/{base}',
             deps=deps,
             features=features,
+            emit=['dep-info', 'link'], # Omits metadata.
         ) if deps else None,
+        env=_default_env(
+            crate=crate,
+            version=version,
+            env=compile_env,
+        ),  
         needs_transitive_deps = True,
         building_description = f'Compiling build script for {crate}-{version}...',
     )
+            
     execution = build_rule(
         name=f'{crate}-{version}',
         tag = 'run_build_script',
         srcs = [
             compilation + '|build_bin',
-            download,
         ],        
         cmd = ' && '.join([
-            f'mkdir -p {out_dir}/{formatted_base}/out',
-            # Export env vars used inside build script.
-            f'export OUT_DIR={out_dir}/{formatted_base}/out',
-            f'export RUSTC=$TOOLS_RUSTC',
-            f'export HOST={host}',
-            f'$SRCS > {out_dir}/{formatted_base}/out/output',
+            # In case cc needs relative paths.
+            f'cp -r {pkg}/{base}/* .', # TODO: find better way of doing this (blake3).
+            f'mkdir -p {out_dir}/{base}/out',
+            f'export RUSTC=$TOOLS_RUSTC', # Need to re-export to run build scripts.
+            f'$SRCS > {out_dir}/{base}/out/output',
         ]),
-        outs = { 'output': [f'{out_dir}/{formatted_base}/out'] },
+        outs = { 'output': [f'{out_dir}/{base}/out'] },
         deps = [compilation] + deps,
         pass_env = ['TOOLS_RUSTC'],
-        env = run_env,
+        env=_default_env(
+            crate=crate,
+            version=version,
+            env=run_env,
+            out_dir=out_dir,
+            build_run=True,
+        ),
         tools = tools,
         building_description = f'Running build script {crate}-{version}...',
     )
@@ -471,8 +460,52 @@ def _rust_crate_build_script(
             'echo $output > $OUTS',
         ]),
         outs = {
-            'formatted_output': [f'{out_dir}/{formatted_base}/out/formatted_output'],
+            'formatted_output': [f'{out_dir}/{base}/out/formatted_output'],
         },
         deps = [execution],
         building_description = f'Collecting build script outputs for {crate}-{version}...',
     )
+
+def _default_env(
+        crate:str, version:str, env:dict={},
+        out_dir:str=None, build_run:bool=False,
+):
+
+    if CONFIG.OS == 'linux':
+        os = 'unknown-linux-gnu'
+    elif CONFIG.OS == 'darwin':
+        os = 'apple-darwin'
+        
+    if CONFIG.ARCH == 'amd64':
+        arch = 'x86_64'
+    elif CONFIG.ARCH == 'x86':
+        arch = 'i686'
+
+    default = {
+        # Target specific.
+        'CARGO_CFG_TARGET_ARCH': arch,
+        'CARGO_CFG_TARGET_ENDIAN': 'little',
+        'CARGO_CFG_TARGET_ENV': 'gnu', # TODO:
+        # 'CARGO_CFG_TARGET_FAMILY': 'unix', # TODO
+        'CARGO_CFG_TARGET_FEATURE': 'fxsr,sse,sse2',
+        # 'CARGO_CFG_HAS_ATOMIC': '16,32,64,8', # TODO
+        'CARGO_CFG_TARGET_OS': CONFIG.OS,
+        'CARGO_CFG_TARGET_POINTER_WIDTH': '64',
+        
+        # Package specific
+        'CARGO_PKG_VERSION': version,
+        
+        # Misc.
+        'TARGET': f'{arch}-{os}',
+        'HOST': f'{arch}-{os}',
+        'OPT_LEVEL': '0',
+    }
+    # Build specific.
+    if out_dir and not build_run:
+        default['OUT_DIR'] = f'../../{out_dir}/{crate}-{version}/out'
+    if build_run:
+        if out_dir:
+            default['OUT_DIR'] = f'{out_dir}/{crate}-{version}/out'
+    for k, v in env.items():
+        default[k] = v
+    return default
