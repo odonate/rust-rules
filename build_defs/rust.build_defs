@@ -396,62 +396,6 @@ def _collect_build_script_output(name:str, root:str, deps:list, edition:str, fea
     )
 
 
-# def _collect_extern_paths(
-#         crate_name:str,
-#         edition:str,
-#         crate_type:str,
-#         features:list,
-#         deps:list,
-#         compile_env:dict=None,
-#         test:bool=False,
-# ):
-#     """Returns the pre-build function to apply --extern to the rustc command"""
-#     def extern_flags(full_dep, labels, rename=None):
-#         dep = canonicalise(full_dep).split(':')[1]
-#         externs = []
-#         pkg = package_name()
-#         for label in labels:
-#             flag = label.split(':')
-#             dep_crate = flag[0].replace('-', '_')
-#             dep_path = flag[1]
-#             if rename and (rename == dep_crate or dep == dep_crate):
-#                 externs.append(f'--extern {rename}={dep_path}')
-#             elif not rename and dep == dep_crate:
-#                 externs.append(f'--extern {dep_crate}={dep_path}')
-#         return externs
-            
-#     def collect_extern_paths(name):
-#         externs = []
-#         label_format = 'rust_md_path:'
-#         if crate_type in ["bin", "proc-macro"]:
-#             label_format = 'rust_crate_path:'
-#             if crate_type == 'proc-macro':
-#                 externs.append('--extern proc_macro')    
-#         if isinstance(deps, dict):
-#             for rename, dep in deps.items():
-#                 labels = get_labels(dep, label_format)
-#                 externs += extern_flags(dep, labels, rename)
-#         elif isinstance(deps, list):
-#             for dep in deps:
-#                 labels = get_labels(dep, label_format)
-#                 externs += extern_flags(dep, labels)
-#         else:
-#             fail(f'Unknown dep type {deps}')
-#         if externs:
-#             cmds, _ = _rustc_cmds(
-#                 crate_name=crate_name if not test else f'{crate_name}_test',
-#                 edition=edition,
-#                 err_format='human',
-#                 crate_type=crate_type,
-#                 externs=externs,
-#                 deps=deps,
-#                 compile_env=compile_env,
-#                 test=test,
-#             )
-#             for k, v in cmds.items():
-#                 set_command(name, k, v)
-#     return collect_extern_paths
-
 def _collect_extern_paths(
         crate_name:str,
         edition:str,
@@ -471,10 +415,18 @@ def _collect_extern_paths(
             rule_name = flag[0]
             crate_name = flag[1]
             crate_path = flag[2]
-            if not rename and rule_name == dep:
-                externs.append(f'--extern {crate_name}={crate_path}')
-            if rename and rule_name == dep:
-                externs.append(f'--extern {rename}={crate_path}')
+            if not rename:
+                if rule_name == dep:
+                    externs.append(f'--extern {crate_name}={crate_path}')
+                elif crate_name == dep:
+                    # Needed for rust_proto rules to work.
+                    externs.append(f'--extern {crate_name}={crate_path}')
+            if rename:
+                if rule_name == dep:
+                    externs.append(f'--extern {rename}={crate_path}')
+                elif crate_name == dep:
+                    # Needed for rust_proto rules to work.
+                    externs.append(f'--extern {rename}={crate_path}')
         return externs
             
     def collect_extern_paths(name):

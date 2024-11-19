@@ -22,5 +22,5 @@ plugin_repo(
     name = "rust_proto",
     owner = "odonate",
     plugin = "rust-proto",
-    revision = "959cc33a0dfad1fd5241b333cafbfa881f9e35cb",
+    revision = "1968f982b9313fc5bfa5621bed4785871da9a7d0",
 )
