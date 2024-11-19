@@ -493,7 +493,9 @@ def _default_env(
         'CARGO_CFG_TARGET_POINTER_WIDTH': '64',
         
         # Package specific
+        'CARGO_PKG_NAME': crate,
         'CARGO_PKG_VERSION': version,
+        'CARGO_MANIFEST_DIR': '', # TODO: not sure what this should be.
         
         # Misc.
         'TARGET': f'{arch}-{os}',
