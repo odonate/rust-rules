@@ -108,6 +108,41 @@ rust_binary(
 )
 ```
 
+To benchmark your code with [Criterion](https://crates.io/crates/criterion), you can use `rust_benchmark`:
+```python
+subinclude("///rust//build_defs:rust")
+
+rust_benchmark(
+    name = "your_benchmark",
+    main = "src/main.rs",
+    deps = [
+        "//your/lib/to/benchmark",
+    ],
+)
+```
+
+You can use criterion directly in your `src/main.rs`:
+```rust
+use criterion::{criterion_group, criterion_main, Criterion, measurement::WallTime};
+use fibonacci::{fibonacci};
+
+fn benchmark_fibonacci(c: &mut Criterion<WallTime>) {
+    c.bench_function("fibonacci 20", |b| b.iter(|| fibonacci(20)));
+}
+
+criterion_group!(
+    name = benches;
+    config = Criterion::default().with_measurement(WallTime);
+    targets = benchmark_fibonacci
+);
+criterion_main!(benches);
+```
+
+And run the benchmark with Please:
+```ini
+plz run //path/to/your_benchmark -- --bench
+```
+
 ## Configuration
 Plugins are configured through the Plugin section like so:
 ```ini
