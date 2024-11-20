@@ -739,6 +739,10 @@ rust_crate(
     crate = "log",
     version = "0.4.21",
     edition = "2021",
+    features = [
+        "default",
+        "std",
+    ],
 )
 
 rust_crate(
@@ -793,16 +797,41 @@ rust_crate(
     ],
 )
 
+# must match the serde_derive version, see:
+# https://github.com/serde-rs/serde/issues/2584#issuecomment-1685252251
 rust_crate(
     name = "serde",
+    build_root = "build.rs",
     crate = "serde",
-    version = "1.0.203",
     edition = "2018",
     features = [
         "default",
+        "derive",
+        "serde_derive",
         "std",
     ],
-    build_root = "build.rs",
+    version = "1.0.215",
+    deps = [
+        ":serde_derive",
+    ],
+)
+
+# must match the serde version, see:
+# https://github.com/serde-rs/serde/issues/2584#issuecomment-1685252251
+rust_crate(
+    name = "serde_derive",
+    crate = "serde_derive",
+    crate_type = "proc-macro",
+    edition = "2018",
+    features = [
+        "default",
+    ],
+    version = "1.0.215",
+    deps = [
+        ":proc_macro2",
+        ":quote",
+        ":syn",
+    ],
 )
 
 rust_crate(
@@ -1658,4 +1687,239 @@ rust_crate(
     features = [
         "std",
     ],
+)
+
+#### BENCHMARKING
+rust_crate(
+    name = "criterion",
+    crate = "criterion",
+    edition = "2021",
+    version = "0.5.1",
+    features = [
+        "html_reports",
+        "csv_reports",
+    ],
+    deps = [
+        ":anes",
+        ":cast",
+        ":ciborium",
+        ":clap",
+        ":criterion_plot",
+        ":is_terminal",
+        ":itertools",
+        ":num_traits",
+        ":once_cell",
+        ":oorandom",
+        ":regex",
+        ":serde",
+        ":serde_derive",
+        ":serde_json",
+        ":tinytemplate",
+        ":walkdir",
+    ],
+)
+
+rust_crate(
+    name = "anes",
+    crate = "anes",
+    edition = "2021",
+    version = "0.1.6",
+)
+
+rust_crate(
+    name = "cast",
+    crate = "cast",
+    edition = "2021",
+    version = "0.3.0",
+)
+
+rust_crate(
+    name = "ciborium",
+    crate = "ciborium",
+    edition = "2021",
+    version = "0.2.2",
+    features = [
+        "std",
+    ],
+    deps = [
+        ":ciborium_io",
+        ":ciborium_ll",
+        ":serde",
+    ]
+)
+
+rust_crate(
+    name = "ciborium_io",
+    crate = "ciborium-io",
+    edition = "2021",
+    version = "0.2.2",
+    features = [
+        "std",
+        "default",
+        "alloc",
+    ],
+)
+
+rust_crate(
+    name = "ciborium_ll",
+    crate = "ciborium-ll",
+    edition = "2021",
+    version = "0.2.2",
+    deps = [
+        ":ciborium_io",
+        ":half",
+    ]
+)
+
+rust_crate(
+    name = "half",
+    crate = "half",
+    edition = "2021",
+    version = "2.4.1",
+    deps = [
+        ":cfg_if",
+        ":crunchy",
+    ]
+)
+
+rust_crate(
+    name = "clap",
+    crate = "clap",
+    edition = "2021",
+    version = "4.4.9",
+    features = [
+        "std",
+        "help",
+    ],
+    deps = [
+        ":clap_builder",
+    ]
+)
+
+rust_crate(
+    name = "clap_builder",
+    crate = "clap_builder",
+    edition = "2021",
+    version = "4.5.21",
+    features = [
+        "std",
+    ],
+    deps = [
+        ":anstyle",
+        ":clap_lex",
+    ]
+)
+
+rust_crate(
+    name = "anstyle",
+    crate = "anstyle",
+    edition = "2021",
+    version = "1.0.10",
+)
+
+rust_crate(
+    name = "clap_lex",
+    crate = "clap_lex",
+    edition = "2021",
+    version = "0.7.3",
+)
+
+rust_crate(
+    name = "criterion_plot",
+    crate = "criterion-plot",
+    edition = "2021",
+    version = "0.5.0",
+    deps = [
+        ":cast",
+        ":itertools",
+    ],
+)
+
+rust_crate(
+    name = "is_terminal",
+    crate = "is-terminal",
+    edition = "2021",
+    version = "0.4.13",
+    deps = [
+        ":hermit_abi",
+        ":libc",
+    ],
+)
+
+rust_crate(
+    name = "hermit_abi",
+    crate = "hermit-abi",
+    edition = "2021",
+    version = "0.4.0",
+)
+
+rust_crate(
+    name = "num_traits",
+    crate = "num-traits",
+    edition = "2018",
+    features = [
+        "std",
+        "default",
+        "i128",
+    ],
+    version = "0.2.19",
+)
+
+rust_crate(
+    name = "oorandom",
+    crate = "oorandom",
+    edition = "2021",
+    version = "11.1.4",
+)
+
+rust_crate(
+    name = "serde_json",
+    crate = "serde_json",
+    edition = "2021",
+    version = "1.0.133",
+    features = [
+        "std",
+    ],
+    deps = [
+        ":itoa",
+        ":memchr",
+        ":ryu",
+        ":serde",
+    ],
+    build_root = "build.rs",
+)
+
+rust_crate(
+    name = "ryu",
+    crate = "ryu",
+    edition = "2021",
+    version = "1.0.18",
+)
+
+rust_crate(
+    name = "tinytemplate",
+    crate = "tinytemplate",
+    edition = "2015",
+    version = "1.2.1",
+    deps = [
+        ":serde",
+        ":serde_json",
+    ],
+)
+
+rust_crate(
+    name = "walkdir",
+    crate = "walkdir",
+    edition = "2021",
+    version = "2.5.0",
+    deps = [
+        ":same_file",
+    ],
+)
+
+rust_crate(
+    name = "same_file",
+    crate = "same-file",
+    edition = "2021",
+    version = "1.0.6",
 )
