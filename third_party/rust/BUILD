@@ -2,8 +2,8 @@ subinclude("//build_defs:rust")
 
 rust_toolchain(
     name = "toolchain",
-    hashes = ["03d89cfdd013996f9911165ffb5790c5fd16f059"],
-    version = "1.78.0",
+    hashes = ["0a4022f567602bd6e9cc35e5b0a9b1a88f3867e6"],
+    version = "1.82.0",
     visibility = ["PUBLIC"],
 )
 
