@@ -288,17 +288,22 @@ def rust_test(name:str, root:str, modules:list=None, deps:list=[], edition:str="
         deps=deps,
         test=True,
     )
+    crate_name = f'{name}_test'
     build_rule(
         name = name,
         srcs = [root],
         binary = True,
         test = True,
         no_test_output = True, # see above
-        outs = [f'{name}_test'],
+        outs = {
+            'rmeta': [f'lib{crate_name}.rmeta'],
+            'bin':[f'{crate_name}'],
+        },
         cmd = cmd,
         deps = deps,
         visibility = visibility,
         requires = ['rust'],
+        labels=_construct_labels(name, crate_name, 'bin'),
         tools = tools,
         pre_build=_collect_extern_paths(
             crate_name=name,
@@ -310,6 +315,54 @@ def rust_test(name:str, root:str, modules:list=None, deps:list=[], edition:str="
         ) if deps else None,
     )
 
+    
+def rust_benchmark(name:str, root:str, modules:list=None, deps:list=[], edition:str="2018", features:list=None, visibility:list=None):
+    """Defines a benchmark rule for a Rust library using Criterion.
+
+    Args:
+        name (str): Name of the benchmark binary.
+        root (str): Source file that the `rustc` compiler starts from.
+        modules (list): Local modules that make up the benchmark.
+        deps (list): Third-party dependencies of the benchmark.
+        edition (str): Rust edition to use (2015, 2018, 2021).
+        features (list): Features to enable during compilation.
+        visibility (list): Visibility declaration.
+    """    
+    if modules:
+        filegroup(
+            name=f'{name}_mods',
+            srcs=modules,
+        )
+        deps.append(f':{name}_mods')
+    deps = deps + ["//third_party/rust:criterion"]
+    cmd, tools = _rustc_cmds(
+        crate_name=name,
+        edition=edition,
+        crate_type='bin',
+        deps=deps,
+        features=features,
+        test=False,
+    )
+    # TODO: store target dir in plz-out.
+    bench_bin = build_rule(
+        name=name,
+        srcs=[root],
+        binary=True,
+        outs=[name],
+        cmd=cmd,
+        deps=deps,
+        visibility=visibility,
+        requires=['rust'],
+        tools=tools,
+        pre_build=_collect_extern_paths(
+            crate_name=name,
+            edition=edition,
+            crate_type='bin',
+            features=features,
+            deps=deps,
+        ) if deps else None,
+    )
+    
 
 def _compile_build_script(
         name:str, root:str, deps:list, edition:str, features:list=None, compile_env:dict={},

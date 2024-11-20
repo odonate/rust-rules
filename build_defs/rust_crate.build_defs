@@ -481,6 +481,7 @@ def _default_env(
     elif CONFIG.ARCH == 'x86':
         arch = 'i686'
 
+    major, minor, patch = version.split('.')
     default = {
         # Target specific.
         'CARGO_CFG_TARGET_ARCH': arch,
@@ -495,6 +496,9 @@ def _default_env(
         # Package specific
         'CARGO_PKG_NAME': crate,
         'CARGO_PKG_VERSION': version,
+        'CARGO_PKG_VERSION_MAJOR': major,
+        'CARGO_PKG_VERSION_MINOR': minor,
+        'CARGO_PKG_VERSION_PATCH': patch,
         'CARGO_MANIFEST_DIR': '', # TODO: not sure what this should be.
         
         # Misc.
